@@ -1,0 +1,20 @@
+{
+  "_comment": "Celo mainnet (chainId 42220). Mainnet-EARLY per GATE 0 decision: ship a thin slice here so a real circle accrues txs + 8004 reputation (2 of 3 tracks reward this). SEPARATE mainnet key (CLAUDE.md §1.5). Mento rebrand: cUSD->USDm, cNGN->NGNm. circle/factory filled at mainnet deploy.",
+  "chainId": 42220,
+  "rpcUrl": "https://forno.celo.org",
+  "explorer": "https://celoscan.io",
+  "tokens": {
+    "USDm": "0x765DE816845861e75A25fCA122bb6898B8B1282a",
+    "NGNm": "0xE2702Bd97ee33c88c8f6f92DA3B733608aa76F71"
+  },
+  "tokenDecimals": { "USDm": 18, "NGNm": 18 },
+  "erc8004": {
+    "identity": "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432",
+    "reputation": "0x8004BAa17C55a88189AE136b182e5fdA19dE9b63",
+    "validation": null
+  },
+  "self": { "hub": null, "_note": "Self verifier address TBD in Phase 3 via self.xyz SDK" },
+  "yield": { "venue": null, "_note": "Confirm a real Aave/Mento pool before enabling; else SIMULATE_YIELD=true" },
+  "deployments": { "circleFactory": null },
+  "feeCurrencyDefault": "USDm"
+}

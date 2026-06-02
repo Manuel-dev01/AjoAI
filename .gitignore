@@ -1,0 +1,54 @@
+# ─── Secrets (NEVER commit) ───────────────────────────────
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+config/secrets.json
+
+# ─── Generated deploy/run artifacts ───
+config/deployments.*.json
+config/demo_run.*.json
+
+# ─── Foundry ──────────────────────────────────────────────
+contracts/out/
+contracts/cache/
+contracts/broadcast/
+# lib/ is tracked as git submodules (forge-std, openzeppelin) — CI fetches recursively
+
+# ─── Node / frontend ──────────────────────────────────────
+node_modules/
+miniapp/.next/
+miniapp/out/
+miniapp/build/
+dist/
+*.tsbuildinfo
+.vercel
+
+# ─── Python (agent) ───────────────────────────────────────
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+agent/.venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ─── OS / editor ──────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.log
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+CLAUDE.md
+DEMO.md
+BUILD_PLAN.md
+VERIFICATION.md
+STATE_MACHINE.md
+PITCH.md
+STACK.md
+STATUS.md

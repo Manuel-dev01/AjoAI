@@ -1,0 +1,9 @@
+{
+  "chain": "sepolia",
+  "identityRegistry": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+  "agentId": 307,
+  "agentWallet": "0x5b92F8A222704d522Fb3dCf8d734C3DAF51Fc4f1",
+  "tx": "5ac0763b9cfe6e141cd839d8ef89895b7d96b540eef1a5f6d08ba50ca2e6896b",
+  "explorer8004": "https://8004scan.io/agent/11142220/307",
+  "explorerTx": "https://celo-sepolia.blockscout.com/tx/0x5ac0763b9cfe6e141cd839d8ef89895b7d96b540eef1a5f6d08ba50ca2e6896b"
+}

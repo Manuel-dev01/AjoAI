@@ -1,0 +1,28 @@
+{
+  "_comment": "Celo Sepolia testnet. Values from docs/VERIFICATION.md (Phase 0, 2026-06-02). Mento rebrand: cUSD->USDm, cNGN->NGNm. ERC-8004 has no Validation registry on Celo. Agent reads addresses from here, never inline. circle/factory filled at Phase 2 deploy.",
+  "chainId": 11142220,
+  "rpcUrl": "https://11142220.rpc.thirdweb.com",
+  "explorer": "https://celo-sepolia.blockscout.com",
+  "tokens": {
+    "USDm": "0xdE9e4C3ce781b4bA68120d6261cbad65ce0aB00b",
+    "NGNm": "0x3d5ae86F34E2a82771496D140daFAEf3789dF888"
+  },
+  "tokenDecimals": { "USDm": 18, "NGNm": 18 },
+  "erc8004": {
+    "identity": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+    "reputation": "0x8004B663056A597Dffe9eCcC1965A193B7388713",
+    "validation": null
+  },
+  "self": { "hub": null, "_note": "Self ZK personhood live on Celo Sepolia (Jan 2026); verifier adapter TBD in Phase 3 via self.xyz SDK" },
+  "yield": { "venue": null, "_note": "No confirmed testnet yield pool; SIMULATE_YIELD=true; on-chain adapter below is the loud simulated one" },
+  "deployments": {
+    "_deployedAt": "2026-06-02, Celo Sepolia (block ~27135283)",
+    "circleFactory": "0x032fEE1776508fE59bA715120Bc190b682162191",
+    "reputationLedger": "0x12Ac76Fd85500fd1dF47D6bF15B6B275eA3FB3Ce",
+    "yieldAdapter": "0x22b1AA6022AfE68F5F019229Bf785D8083cD3640",
+    "agent": "0x5b92F8A222704d522Fb3dCf8d734C3DAF51Fc4f1",
+    "demoCircle": "0xc578127F2978896ef1b4995CE44D780C89676cb4",
+    "_demoCircleNote": "NGNm, 100 contribution, 300s period, 120s grace, 5% penalty, 4 slots; all four contracts source-verified on Blockscout"
+  },
+  "feeCurrencyDefault": "USDm"
+}

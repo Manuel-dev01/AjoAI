@@ -1,0 +1,22 @@
+{
+  "type": "https://eips.ethereum.org/EIPS/eip-8004#agent-card",
+  "name": "AjoAI",
+  "description": "Autonomous rotating-savings (ajo/esusu/chama/stokvel) agent on Celo. Onboards members by phone, custodies and rotates fixed periodic contributions in Mento stablecoins, parks idle funds, enforces defaults with on-chain penalties + ERC-8004 reputation, and issues a portable savings-credit score. Non-custodial: the contract enforces all money rules; the agent only triggers legal transitions.",
+  "version": "0.1.0",
+  "homepage": "https://github.com/AjoAI",
+  "capabilities": [
+    "rosca.create",
+    "rosca.contribute",
+    "rosca.payout",
+    "rosca.default-recovery",
+    "rosca.reputation",
+    "nl.query.en_pidgin_swahili"
+  ],
+  "chains": ["celo-sepolia:11142220", "celo:42220"],
+  "contracts": {
+    "circleFactory.sepolia": "0x032fEE1776508fE59bA715120Bc190b682162191",
+    "reputationLedger.sepolia": "0x12Ac76Fd85500fd1dF47D6bF15B6B275eA3FB3Ce"
+  },
+  "framework": "custom (Python web3.py); LLM = Claude (NL handler only, never moves money)",
+  "skills": ["x402: guarantor-score (planned)", "x402: circle-analytics (planned)"]
+}

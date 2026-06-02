@@ -1,0 +1,139 @@
+"""Natural-language member Q&A (CLAUDE.md §8) — EN / Nigerian Pidgin / Swahili.
+
+HARD RULE (CLAUDE.md §1.3): the LLM NEVER moves money and never authorizes an action the
+contract wouldn't enforce. It only *explains* facts read from chain. Money actions come from
+the rule-based `decide()` in loop.py. This module: (1) extracts factual answers from a
+CircleView deterministically, (2) optionally phrases them via Claude in the member's language.
+If no LLM key is set, the deterministic answer is returned as-is (still correct, just terser).
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+from .chain import CircleView
+
+# NL handler model — small + fast, explanation only (docs/STACK.md). Never tool-enabled.
+NL_MODEL = "claude-haiku-4-5"
+
+SYSTEM_PROMPT = """You are AjoAI's member assistant for a rotating savings circle \
+(ajo/esusu/chama/stokvel) on Celo. You ONLY explain facts you are given about the circle. \
+You NEVER promise to move money, change anyone's turn, waive a penalty, or take any action — \
+the smart contract enforces all of that, not you. If asked to do something money-moving, \
+explain what the contract rules are instead.
+
+Answer in the SAME language the member used: English, Nigerian Pidgin, or Swahili. Keep it \
+short (1-3 sentences), concrete, and money-accurate. Use the exact figures provided. Never \
+invent numbers; if a fact is not in the context, say you don't have it."""
+
+
+def _fmt(amount_wei: int, decimals: int = 18) -> str:
+    whole = amount_wei // (10**decimals)
+    return f"{whole:,}"
+
+
+@dataclass
+class MemberFacts:
+    """Deterministic, chain-derived answer scaffold for one member's common questions."""
+
+    is_member: bool
+    has_received: bool
+    is_delinquent: bool
+    your_round: int | None  # the round index where this member receives
+    rounds_until_your_turn: int | None
+    current_recipient: str | None
+    state: str
+    intended_pot_str: str
+
+    def baseline_answer(self) -> str:
+        if not is_member_guard(self):
+            return "You are not a member of this circle."
+        if self.is_delinquent:
+            return (
+                "You are currently marked delinquent (a missed contribution past grace). "
+                "You must cure (re-deposit) before you can receive your payout."
+            )
+        if self.has_received:
+            return "You have already received your payout for this circle."
+        if self.rounds_until_your_turn == 0:
+            return f"It's your turn now — you receive the pot of {self.intended_pot_str}."
+        if self.rounds_until_your_turn is not None:
+            return (
+                f"Your payout is in {self.rounds_until_your_turn} round(s); "
+                f"you'll receive {self.intended_pot_str}."
+            )
+        return f"Circle state is {self.state}; the pot is {self.intended_pot_str}."
+
+
+def is_member_guard(f: MemberFacts) -> bool:
+    return f.is_member
+
+
+def facts_for(view: CircleView, member: str, token_decimals: int = 18) -> MemberFacts:
+    """Pure: derive a member's situation from a chain snapshot (no LLM, no tx)."""
+    member = member.lower()
+    members_lc = [m.lower() for m in view.members]
+    is_member = member in members_lc
+
+    your_round = None
+    if view.rotation:
+        rot_lc = [r.lower() for r in view.rotation]
+        if member in rot_lc:
+            your_round = rot_lc.index(member)
+
+    rounds_until = None
+    if your_round is not None:
+        rounds_until = max(your_round - view.current_round, 0)
+
+    # has_received: we don't have it on the view per-member; infer for the common case.
+    has_received = your_round is not None and view.current_round > your_round
+
+    return MemberFacts(
+        is_member=is_member,
+        has_received=has_received,
+        is_delinquent=(view.recipient is not None and view.recipient.lower() == member and view.recipient_delinquent),
+        your_round=your_round,
+        rounds_until_your_turn=rounds_until,
+        current_recipient=view.recipient,
+        state=view.state_name,
+        intended_pot_str=f"{_fmt(view.intended_pot, token_decimals)} units",
+    )
+
+
+def answer(question: str, facts: MemberFacts, api_key: str | None) -> str:
+    """Phrase the deterministic answer in the member's language via Claude (optional)."""
+    baseline = facts.baseline_answer()
+    if not api_key:
+        return baseline
+
+    try:
+        import anthropic
+    except ImportError:
+        return baseline
+
+    client = anthropic.Anthropic(api_key=api_key)
+    context = (
+        f"FACTS (authoritative, from chain):\n"
+        f"- circle state: {facts.state}\n"
+        f"- is member: {facts.is_member}\n"
+        f"- has received payout: {facts.has_received}\n"
+        f"- delinquent: {facts.is_delinquent}\n"
+        f"- rounds until your turn: {facts.rounds_until_your_turn}\n"
+        f"- pot: {facts.intended_pot_str}\n"
+        f"- deterministic answer to relay: {baseline}\n"
+    )
+    msg = client.messages.create(
+        model=NL_MODEL,
+        max_tokens=200,
+        system=[
+            {
+                "type": "text",
+                "text": SYSTEM_PROMPT,
+                "cache_control": {"type": "ephemeral"},  # cache the long system prompt
+            }
+        ],
+        messages=[
+            {"role": "user", "content": f"{context}\nMember asks: {question}"},
+        ],
+    )
+    return "".join(block.text for block in msg.content if block.type == "text").strip() or baseline

@@ -1,0 +1,41 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+test = "test"
+script = "script"
+solc = "0.8.28"
+optimizer = true
+optimizer_runs = 200
+via_ir = false
+remappings = [
+    "forge-std/=lib/forge-std/src/",
+    "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
+]
+fs_permissions = [
+    { access = "read", path = "./" },
+    { access = "read-write", path = "../config" },
+]
+
+[profile.default.fuzz]
+runs = 256
+
+[profile.default.invariant]
+runs = 256
+depth = 32
+fail_on_revert = false
+
+[fmt]
+line_length = 100
+tab_width = 4
+bracket_spacing = true
+int_types = "long"
+
+# Celo RPC endpoints (use with --rpc-url celo_sepolia / celo_mainnet)
+[rpc_endpoints]
+celo_sepolia = "https://11142220.rpc.thirdweb.com"
+celo_mainnet = "https://forno.celo.org"
+
+[etherscan]
+celo_sepolia = { key = "${EXPLORER_API_KEY}", url = "https://celo-sepolia.blockscout.com/api", chain = 11142220 }
+celo_mainnet = { key = "${EXPLORER_API_KEY}", url = "https://api.celoscan.io/api", chain = 42220 }
