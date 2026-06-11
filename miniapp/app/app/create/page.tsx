@@ -1,0 +1,122 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { parseEventLogs, parseUnits } from "viem";
+import { useAccount, useWaitForTransactionReceipt } from "wagmi";
+import { AppBar, ConnectButton } from "@/components/ui";
+import { useCeloWrite } from "@/lib/tx";
+import { factoryAbi } from "@/lib/abi";
+import { FACTORY } from "@/lib/circle";
+import { TOKENS } from "@/lib/chain";
+
+const FREQS = [
+  { label: "Weekly", period: 604_800 },
+  { label: "Monthly", period: 2_592_000 },
+  { label: "90 days", period: 7_776_000 },
+];
+const SIZES = [6, 8, 10, 12];
+const TOKEN_OPTS = [
+  { sym: "NGNm", addr: TOKENS.NGNm },
+  { sym: "USDm", addr: TOKENS.USDm },
+];
+
+export default function CreateCircle() {
+  const router = useRouter();
+  const { isConnected } = useAccount();
+  const { write, isPending, error } = useCeloWrite();
+  const [amount, setAmount] = useState("10000");
+  const [tok, setTok] = useState(0);
+  const [freq, setFreq] = useState(1);
+  const [size, setSize] = useState(1);
+  const [txHash, setTxHash] = useState<`0x${string}` | undefined>();
+
+  const { data: receipt } = useWaitForTransactionReceipt({ hash: txHash });
+
+  useEffect(() => {
+    if (!receipt) return;
+    const logs = parseEventLogs({ abi: factoryAbi, eventName: "CircleCreated", logs: receipt.logs });
+    const created = (logs[0]?.args as { circle?: string } | undefined)?.circle;
+    if (created) router.push(`/app/circle/${created}`);
+  }, [receipt, router]);
+
+  async function submit() {
+    const period = FREQS[freq].period;
+    const contribution = parseUnits(amount || "0", 18);
+    const h = await write({
+      address: FACTORY,
+      abi: factoryAbi,
+      functionName: "createCircle",
+      args: [TOKEN_OPTS[tok].addr, contribution, BigInt(period), BigInt(Math.floor(period / 7)), 500, SIZES[size]],
+    });
+    setTxHash(h);
+  }
+
+  const busy = isPending || (!!txHash && !receipt);
+
+  return (
+    <>
+      <AppBar title="Start a circle" back="/app" />
+      <div className="appmain">
+        <div className="fld">
+          <div className="fl">Amount each round</div>
+          <div className="fi">
+            <input
+              className="fi"
+              style={{ border: "none", padding: 0, background: "transparent", width: "70%" }}
+              value={amount}
+              inputMode="numeric"
+              onChange={(e) => setAmount(e.target.value.replace(/[^\d]/g, ""))}
+            />
+            <span className="cur">{TOKEN_OPTS[tok].sym}</span>
+          </div>
+        </div>
+
+        <div className="fld">
+          <div className="fl">Currency</div>
+          <div className="seg">
+            {TOKEN_OPTS.map((t, i) => (
+              <span key={t.sym} className={`s${i === tok ? " on" : ""}`} onClick={() => setTok(i)}>{t.sym}</span>
+            ))}
+          </div>
+        </div>
+
+        <div className="fld">
+          <div className="fl">How often</div>
+          <div className="seg">
+            {FREQS.map((f, i) => (
+              <span key={f.label} className={`s${i === freq ? " on" : ""}`} onClick={() => setFreq(i)}>{f.label}</span>
+            ))}
+          </div>
+        </div>
+
+        <div className="fld">
+          <div className="fl">Members</div>
+          <div className="seg">
+            {SIZES.map((s, i) => (
+              <span key={s} className={`s${i === size ? " on" : ""}`} onClick={() => setSize(i)}>{s}</span>
+            ))}
+          </div>
+        </div>
+
+        <div className="fld">
+          <div className="fl">Payout order</div>
+          <div className="fi" style={{ fontSize: 13 }}>Random &amp; locked<span className="cur">fair</span></div>
+        </div>
+
+        <p className="muted">A one-round security deposit ({amount || 0} {TOKEN_OPTS[tok].sym}) is posted by each member on joining — it covers a missed round and is returned on clean completion.</p>
+        {error && <p className="banner">{error.message.slice(0, 120)}</p>}
+      </div>
+
+      <div className="fixbtn">
+        {isConnected ? (
+          <button className="btn btn-ochre btn-block" disabled={busy} onClick={submit}>
+            {busy ? "Creating…" : "Create & invite →"}
+          </button>
+        ) : (
+          <ConnectButton />
+        )}
+      </div>
+    </>
+  );
+}

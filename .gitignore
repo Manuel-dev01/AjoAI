@@ -45,10 +45,10 @@ Thumbs.db
 !.vscode/extensions.json
 
 CLAUDE.md
-DEMO.md
-BUILD_PLAN.md
-VERIFICATION.md
-STATE_MACHINE.md
-PITCH.md
-STACK.md
-STATUS.md
+docs/DEMO.md
+docs/BUILD_PLAN.md
+docs/VERIFICATION.md
+docs/STATE_MACHINE.md
+docs/PITCH.md
+docs/STACK.md
+docs/STATUS.md
