@@ -1,0 +1,17 @@
+# Keep the agent image lean — only agent/ + config/ are needed.
+.git
+miniapp
+contracts/lib
+contracts/out
+contracts/cache
+contracts/broadcast
+docs
+**/node_modules
+**/.venv
+**/__pycache__
+**/*.pyc
+.env
+.env.*
+!.env.example
+*.log
+.claude

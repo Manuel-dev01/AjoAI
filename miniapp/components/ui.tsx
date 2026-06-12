@@ -43,15 +43,17 @@ export function AppBar({ title, mini, back }: { title: string; mini?: string; ba
   );
 }
 
-// Desktop only: MiniPay injects + auto-connects, so this is hidden inside the wallet.
+// On desktop: always visible. Inside MiniPay: hidden (auto-connect handles it),
+// but shown as fallback if auto-connect errors out.
 export function ConnectButton() {
   const inMiniPay = useInMiniPay();
-  const { connect, connectors, isPending } = useConnect();
-  if (inMiniPay) return null;
-  const injected = connectors[0];
+  const { connect, connectors, isPending, error } = useConnect();
+  // In MiniPay without error — auto-connect is handling it, hide button
+  if (inMiniPay && !error) return null;
+  const injected = connectors.find((c) => c.id === "injected");
   return (
     <button className="btn btn-ochre btn-block" disabled={isPending} onClick={() => injected && connect({ connector: injected })}>
-      {isPending ? "Connecting…" : "Connect wallet"}
+      {isPending ? "Connecting…" : inMiniPay ? "Retry connection" : "Connect wallet"}
     </button>
   );
 }

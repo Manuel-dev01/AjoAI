@@ -77,6 +77,12 @@ class ChainClient:
             address=Web3.to_checksum_address(self.s.reputation_ledger), abi=self.rep_abi
         )
 
+    def all_circles(self) -> list[str]:
+        """Every circle the factory has deployed (for the serve-all sweep)."""
+        f = self.factory()
+        n = f.functions.allCirclesLength().call()
+        return [Web3.to_checksum_address(f.functions.allCircles(i).call()) for i in range(n)]
+
     # ── PERCEIVE ──
     def view_circle(self, addr: str) -> CircleView:
         c = self.circle(addr)
@@ -115,6 +121,12 @@ class ChainClient:
 
     def now(self) -> int:
         return self.w3.eth.get_block("latest")["timestamp"]
+
+    def gas_balance_wei(self) -> int:
+        """Native (CELO) balance of the agent account — gas runway for triggering txs."""
+        if not self.acct:
+            return 0
+        return self.w3.eth.get_balance(self.acct.address)
 
     # ── ACT (agent-only triggers) ──
     def _send(self, fn, gas: int = 700_000) -> dict:

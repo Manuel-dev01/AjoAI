@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useAccount } from "wagmi";
+import { useAccount, useConnect } from "wagmi";
 import { RingMark } from "@/components/RingMark";
 import { ConnectButton } from "@/components/ui";
 import { useInMiniPay } from "@/app/providers";
@@ -9,6 +9,7 @@ import { useMyCircles, useCircle, useScore } from "@/lib/circle";
 import { CONTRACTS } from "@/lib/chain";
 import { short } from "@/lib/format";
 import { STATE_NAMES } from "@/lib/abi";
+import { getName } from "@/lib/names";
 
 export default function Home() {
   const { isConnected, address } = useAccount();
@@ -18,6 +19,13 @@ export default function Home() {
 
 function Welcome() {
   const inMiniPay = useInMiniPay();
+  const { connect, connectors, error, isPending } = useConnect();
+
+  const handleRetry = () => {
+    const injected = connectors.find((c) => c.id === "injected");
+    if (injected) connect({ connector: injected });
+  };
+
   return (
     <div className="welcome">
       <div />
@@ -31,11 +39,34 @@ function Welcome() {
           <span className="flag">🤝</span>
           <div>
             <div className="lab">Your MiniPay wallet</div>
-            <div className="num">{inMiniPay ? "Connecting…" : "Connect to begin"}</div>
+            <div className="num">
+              {inMiniPay
+                ? error
+                  ? "Connection failed"
+                  : "Connecting…"
+                : "Connect to begin"}
+            </div>
           </div>
         </div>
         <ConnectButton />
-        {inMiniPay && <p style={{ marginTop: 10 }}>One moment — MiniPay is connecting your wallet.</p>}
+        {inMiniPay && !error && (
+          <p style={{ marginTop: 10 }}>One moment — MiniPay is connecting your wallet.</p>
+        )}
+        {inMiniPay && error && (
+          <div style={{ marginTop: 10 }}>
+            <p style={{ color: "#c00", fontSize: 13 }}>
+              Could not connect to MiniPay. Make sure you&apos;re opening this inside the MiniPay app.
+            </p>
+            <button
+              className="btn btn-ochre btn-block"
+              style={{ marginTop: 8 }}
+              disabled={isPending}
+              onClick={handleRetry}
+            >
+              {isPending ? "Retrying…" : "Try again"}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -76,7 +107,7 @@ function Dashboard({ address }: { address: `0x${string}` }) {
         )}
 
         {mine.map((c, i) => (
-          <CircleCard key={c} address={c} alt={i % 2 === 1} />
+          <CircleCard key={c.addr} address={c.addr} alt={i % 2 === 1} isOrganizer={c.isOrganizer} isMember={c.isMember} />
         ))}
 
         <div style={{ marginTop: 16, display: "grid", gap: 9 }}>
@@ -88,23 +119,26 @@ function Dashboard({ address }: { address: `0x${string}` }) {
   );
 }
 
-function CircleCard({ address, alt }: { address: `0x${string}`; alt: boolean }) {
+function CircleCard({ address, alt, isOrganizer, isMember }: { address: `0x${string}`; alt: boolean; isOrganizer?: boolean; isMember?: boolean }) {
   const { state, round, slots, roundsPaid, recipient } = useCircle(address);
   const pct = slots ? (Number(roundsPaid ?? 0n) / slots) * 100 : 0;
   const stateName = state !== undefined ? STATE_NAMES[state] : "…";
   const live = state === 1;
+  const forming = state === 0;
+  const title = getName(address) || `Circle ${short(address)}`;
+  const role = isOrganizer && !isMember ? "You organise" : isOrganizer ? "Organiser" : "Member";
   return (
     <Link href={`/app/circle/${address}`} className={`ccard${alt ? " alt" : ""}`} style={{ display: "block" }}>
       <div className="top">
         <RingMark variant="static" size={26} />
-        <span className="nm">Circle {short(address)}</span>
-        <span className={`pill ${live ? "turn" : "paid"}`} style={{ marginLeft: "auto" }}>{stateName}</span>
+        <span className="nm">{title}</span>
+        <span className={`pill ${live ? "turn" : forming ? "due" : "paid"}`} style={{ marginLeft: "auto" }}>{stateName}</span>
       </div>
       <div className="meta">
-        <span>Round {round?.toString() ?? "…"} of {slots ?? "…"}</span>
-        <span>{recipient ? `Next: ${short(recipient)}` : "—"}</span>
+        <span>{forming ? "Forming · invite members" : `Round ${round?.toString() ?? "…"} of ${slots ?? "…"}`}</span>
+        <span>{role}</span>
       </div>
-      <div className="bar"><i style={{ width: `${pct}%` }} /></div>
+      <div className="bar"><i style={{ width: `${forming ? 0 : pct}%` }} /></div>
     </Link>
   );
 }

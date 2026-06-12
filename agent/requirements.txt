@@ -1,5 +1,6 @@
 # AjoAI agent runtime (Python). Stack locked in docs/STACK.md.
-web3>=6.15,<8            # chain client (CIP-64 feeCurrency support)
+web3>=6.15,<8            # chain client. NOTE: stock web3.py/eth-account can't sign Celo
+                        # CIP-64 (feeCurrency) txs, so the agent pays gas in native CELO.
 python-dotenv>=1.0       # load .env
 structlog>=24.1          # structured, tx-hash-linked JSON logs
 APScheduler>=3.10,<4     # idempotent scheduled jobs (windows/payouts)

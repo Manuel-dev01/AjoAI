@@ -20,6 +20,7 @@ export const circleAbi = [
   { type: "function", name: "membersLength", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
   { type: "function", name: "members", stateMutability: "view", inputs: [{ type: "uint256" }], outputs: [{ type: "address" }] },
   { type: "function", name: "memberIndex", stateMutability: "view", inputs: [{ type: "address" }], outputs: [{ type: "uint256" }] },
+  { type: "function", name: "organizer", stateMutability: "view", inputs: [], outputs: [{ type: "address" }] },
   { type: "function", name: "recipientOf", stateMutability: "view", inputs: [{ type: "uint256" }], outputs: [{ type: "address" }] },
   { type: "function", name: "hasReceived", stateMutability: "view", inputs: [{ type: "address" }], outputs: [{ type: "bool" }] },
   { type: "function", name: "isDelinquent", stateMutability: "view", inputs: [{ type: "address" }], outputs: [{ type: "bool" }] },

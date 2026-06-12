@@ -9,6 +9,7 @@ import { useCeloWrite } from "@/lib/tx";
 import { factoryAbi } from "@/lib/abi";
 import { FACTORY } from "@/lib/circle";
 import { TOKENS } from "@/lib/chain";
+import { setName } from "@/lib/names";
 
 const FREQS = [
   { label: "Weekly", period: 604_800 },
@@ -25,6 +26,7 @@ export default function CreateCircle() {
   const router = useRouter();
   const { isConnected } = useAccount();
   const { write, isPending, error } = useCeloWrite();
+  const [name, setNameInput] = useState("");
   const [amount, setAmount] = useState("10000");
   const [tok, setTok] = useState(0);
   const [freq, setFreq] = useState(1);
@@ -37,8 +39,11 @@ export default function CreateCircle() {
     if (!receipt) return;
     const logs = parseEventLogs({ abi: factoryAbi, eventName: "CircleCreated", logs: receipt.logs });
     const created = (logs[0]?.args as { circle?: string } | undefined)?.circle;
-    if (created) router.push(`/app/circle/${created}`);
-  }, [receipt, router]);
+    if (created) {
+      if (name.trim()) setName(created, name);
+      router.push(`/app/circle/${created}`);
+    }
+  }, [receipt, router, name]);
 
   async function submit() {
     const period = FREQS[freq].period;
@@ -58,6 +63,17 @@ export default function CreateCircle() {
     <>
       <AppBar title="Start a circle" back="/app" />
       <div className="appmain">
+        <div className="fld">
+          <div className="fl">Circle name</div>
+          <input
+            className="fi"
+            placeholder="e.g. Lagos Market Traders"
+            value={name}
+            onChange={(e) => setNameInput(e.target.value)}
+            style={{ fontSize: 14 }}
+          />
+        </div>
+
         <div className="fld">
           <div className="fl">Amount each round</div>
           <div className="fi">

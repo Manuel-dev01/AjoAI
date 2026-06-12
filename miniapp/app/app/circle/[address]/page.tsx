@@ -6,11 +6,13 @@ import { isAddress } from "viem";
 import { useAccount, usePublicClient, useReadContract, useWaitForTransactionReceipt } from "wagmi";
 import { RingMark } from "@/components/RingMark";
 import { AppBar, Avatar, Lrow, Pill, ConnectButton } from "@/components/ui";
+import { InvitePanel } from "@/components/InvitePanel";
 import { useCeloWrite } from "@/lib/tx";
 import { circleAbi, erc20Abi, STATE_NAMES } from "@/lib/abi";
 import { useCircle, useToken, useMembers, useMyStatus } from "@/lib/circle";
 import { fmtAmount, short } from "@/lib/format";
 import { explorerAddr } from "@/lib/chain";
+import { getName } from "@/lib/names";
 
 type Tab = "circle" | "pay" | "activity";
 type CircleData = ReturnType<typeof useCircle>;
@@ -27,13 +29,16 @@ function CircleView({ address }: { address: `0x${string}` }) {
   const c = useCircle(address);
   const { symbol, decimals } = useToken(c.token);
   const my = useMyStatus(address, c.round);
-  const { members } = useMembers(address, c.membersLength, c.round);
-  const yourTurn = Boolean(my.me && c.recipient && my.me.toLowerCase() === c.recipient.toLowerCase());
-  const anyLate = members.some((m) => m.isDelinquent);
+  const { members, refetch: refetchMembers } = useMembers(address, c.membersLength, c.round);
+  const name = getName(address) || `Circle ${short(address)}`;
+  const forming = c.state === 0;
+  const active = c.state === 1;
+  const yourTurn = active && Boolean(my.me && c.recipient && my.me.toLowerCase() === c.recipient.toLowerCase());
+  const anyLate = active && members.some((m) => m.isDelinquent);
 
   return (
     <>
-      <AppBar title={`Circle ${short(address)}`} mini={c.state === 1 ? "Live" : STATE_NAMES[c.state ?? 0]} back="/app" />
+      <AppBar title={name} mini={active ? "Live" : STATE_NAMES[c.state ?? 0]} back="/app" />
       <div className="appmain">
         <div className="tabs">
           <span className={`t${tab === "circle" ? " on" : ""}`} onClick={() => setTab("circle")}>Circle</span>
@@ -41,7 +46,11 @@ function CircleView({ address }: { address: `0x${string}` }) {
           <span className={`t${tab === "activity" ? " on" : ""}`} onClick={() => setTab("activity")}>Activity</span>
         </div>
 
-        {tab === "circle" && (
+        {tab === "circle" && forming && (
+          <FormingView address={address} c={c} my={my} members={members} name={getName(address)} symbol={symbol} decimals={decimals} refetch={() => { c.refetch(); my.refetch(); refetchMembers(); }} />
+        )}
+
+        {tab === "circle" && active && (
           <>
             {yourTurn && (
               <div className="invite" style={{ background: "var(--clay)" }}>
@@ -66,7 +75,6 @@ function CircleView({ address }: { address: `0x${string}` }) {
               <div className="nx">{c.recipient ? `Next payout · ${short(c.recipient)}` : "—"}</div>
             </div>
 
-            {members.length === 0 && <div className="muted" style={{ padding: "8px 2px" }}>No members yet.</div>}
             {members.map((m) => {
               const isRecipient = c.recipient && m.address.toLowerCase() === c.recipient.toLowerCase();
               const kind = isRecipient ? "turn" : m.isDelinquent ? "late" : m.contributed ? "paid" : "due";
@@ -82,6 +90,14 @@ function CircleView({ address }: { address: `0x${string}` }) {
           </>
         )}
 
+        {tab === "circle" && !forming && !active && (
+          <div className="empty">
+            <RingMark variant="full" />
+            <div style={{ fontWeight: 700, marginTop: 4 }}>Circle {STATE_NAMES[c.state ?? 0]}</div>
+            <div className="muted" style={{ marginTop: 4 }}>This circle has finished its rounds. Deposits returned; reputation written.</div>
+          </div>
+        )}
+
         {tab === "pay" && (
           <PayTab address={address} c={c} symbol={symbol} decimals={decimals} my={my} />
         )}
@@ -89,6 +105,83 @@ function CircleView({ address }: { address: `0x${string}` }) {
         {tab === "activity" && (
           <Activity address={address} symbol={symbol} decimals={decimals} />
         )}
+      </div>
+    </>
+  );
+}
+
+// Forming: invite + join + start.
+function FormingView({ address, c, my, members, name, symbol, decimals, refetch }: {
+  address: `0x${string}`; c: CircleData; my: MyStatus; members: { address: `0x${string}` }[];
+  name?: string; symbol: string; decimals: number; refetch: () => void;
+}) {
+  const { address: me, isConnected } = useAccount();
+  const { write, isPending, error } = useCeloWrite();
+  const [txHash, setTxHash] = useState<`0x${string}` | undefined>();
+  const { data: receipt } = useWaitForTransactionReceipt({ hash: txHash });
+  const { data: allowance, refetch: refetchAllow } = useReadContract({
+    address: c.token, abi: erc20Abi, functionName: "allowance",
+    args: me && c.token ? [me, address] : undefined,
+    query: { enabled: Boolean(me && c.token) },
+  });
+  useEffect(() => { if (receipt) refetch(); }, [receipt, refetch]);
+
+  const full = c.membersLength !== undefined && c.slots !== undefined && Number(c.membersLength) >= c.slots;
+  const isOrganizer = Boolean(me && c.organizer && me.toLowerCase() === c.organizer.toLowerCase());
+  const needsApproval = c.deposit !== undefined && (allowance === undefined || (allowance as bigint) < c.deposit);
+  const busy = isPending || (!!txHash && !receipt);
+
+  async function approve() {
+    if (!c.token || c.deposit === undefined) return;
+    const h = await write({ address: c.token, abi: erc20Abi, functionName: "approve", args: [address, c.deposit] });
+    setTxHash(h); setTimeout(() => refetchAllow(), 4000);
+  }
+  async function join() {
+    const h = await write({ address, abi: circleAbi, functionName: "join", args: ["0x"] });
+    setTxHash(h);
+  }
+  async function start() {
+    const h = await write({ address, abi: circleAbi, functionName: "start", args: [] });
+    setTxHash(h);
+  }
+
+  return (
+    <>
+      <InvitePanel address={address} name={name} slots={c.slots} members={members} />
+
+      <Lrow k="Members" v={`${c.membersLength?.toString() ?? "…"} / ${c.slots ?? "…"}`} />
+      <Lrow k="Contribution" v={fmtAmount(c.contribution, symbol, decimals)} />
+      <Lrow k="Security deposit" v={fmtAmount(c.deposit, symbol, decimals)} />
+      {error && <p className="banner">{error.message.slice(0, 140)}</p>}
+
+      <div style={{ marginTop: 14, display: "grid", gap: 9 }}>
+        {!isConnected ? (
+          <ConnectButton />
+        ) : my.isMember ? (
+          isOrganizer && full ? (
+            <button className="btn btn-ochre btn-block" disabled={busy} onClick={start}>{busy ? "Starting…" : "Start circle →"}</button>
+          ) : (
+            <div className="banner" style={{ background: "var(--green)", color: "var(--cream)", border: "none" }}>
+              You&rsquo;re in ✓ {full ? "Waiting for the organiser to start." : `Waiting for members (${c.membersLength?.toString()}/${c.slots}).`}
+            </div>
+          )
+        ) : full ? (
+          <div className="muted">This circle is full.</div>
+        ) : needsApproval ? (
+          <button className="btn btn-block" disabled={busy} onClick={approve}>{busy ? "Approving…" : `1. Approve deposit (${fmtAmount(c.deposit, symbol, decimals)})`}</button>
+        ) : (
+          <button className="btn btn-ochre btn-block" disabled={busy} onClick={join}>{busy ? "Joining…" : "Join this circle"}</button>
+        )}
+      </div>
+
+      <div style={{ marginTop: 16 }}>
+        {members.map((m) => (
+          <div className="mrow" key={m.address}>
+            <Avatar addr={m.address} size={28} />
+            <span className="nm">{m.address.toLowerCase() === me?.toLowerCase() ? "You" : short(m.address)}</span>
+            <Pill kind="paid">Joined</Pill>
+          </div>
+        ))}
       </div>
     </>
   );
@@ -117,6 +210,15 @@ function PayTab({ address, c, symbol, decimals, my }: { address: `0x${string}`; 
   }
   const busy = isPending || (!!txHash && !receipt);
 
+  if (c.state !== undefined && c.state !== 1) {
+    return (
+      <div className="empty">
+        <RingMark variant="full" />
+        <div style={{ fontWeight: 700, marginTop: 4 }}>{c.state === 0 ? "Not started yet" : "Circle ended"}</div>
+        <div className="muted" style={{ marginTop: 4 }}>{c.state === 0 ? "Contributions open once the circle is full and started." : "No more contributions for this circle."}</div>
+      </div>
+    );
+  }
   if (!my.isMember) {
     return (
       <div className="empty">

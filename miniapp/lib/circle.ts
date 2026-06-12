@@ -27,6 +27,7 @@ export function useCircle(address?: Addr) {
       { ...c, functionName: "roundsPaid" },
       { ...c, functionName: "membersLength" },
       { ...c, functionName: "penaltyPool" },
+      { ...c, functionName: "organizer" },
     ],
   });
   const r = data?.map((d) => d.result);
@@ -51,6 +52,7 @@ export function useCircle(address?: Addr) {
     roundsPaid: r?.[7] as bigint | undefined,
     membersLength: r?.[8] as bigint | undefined,
     penaltyPool: r?.[9] as bigint | undefined,
+    organizer: r?.[10] as Addr | undefined,
     recipient: recipient as Addr | undefined,
   };
 }
@@ -150,16 +152,22 @@ export function useMyCircles() {
     () => (listCalls.data?.map((d) => d.result as Addr).filter(Boolean) ?? []),
     [listCalls.data],
   );
-  const memberCalls = useReadContracts({
+  // Include circles you ORGANIZE (even before you join) and circles you're a member of.
+  const relCalls = useReadContracts({
     query: { enabled: all.length > 0 && Boolean(me) },
-    contracts: all.map((addr) => ({
-      address: addr,
-      abi: circleAbi,
-      functionName: "isMember" as const,
-      args: [me as Addr] as const,
-    })),
+    contracts: all.flatMap((addr) => [
+      { address: addr, abi: circleAbi, functionName: "isMember" as const, args: [me as Addr] as const },
+      { address: addr, abi: circleAbi, functionName: "organizer" as const },
+    ]),
   });
-  const mine = all.filter((_, i) => memberCalls.data?.[i]?.result === true);
+  const mine = all
+    .map((addr, i) => {
+      const isMember = relCalls.data?.[i * 2]?.result === true;
+      const organizer = relCalls.data?.[i * 2 + 1]?.result as Addr | undefined;
+      const isOrganizer = Boolean(me && organizer && organizer.toLowerCase() === me.toLowerCase());
+      return { addr, isMember, isOrganizer };
+    })
+    .filter((c) => c.isMember || c.isOrganizer);
   return { me, all, mine, isLoading: listCalls.isLoading };
 }
 

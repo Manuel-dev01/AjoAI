@@ -98,6 +98,32 @@ triggered all 4 payouts (economic agency) + finalize. Member scores all 9 (on-ch
 - **Validated live:** `python -m src.main status` reads the real Sepolia circle correctly
   (Forming 0/4 → plans "wait"). Connectivity + ABI wiring confirmed end-to-end.
 
+## ☁️ AGENT HOSTING (autonomous, no laptop) — ready
+- agent/Dockerfile (context=repo root, ships agent/ + config/) + .dockerignore; **image builds
+  + boots verified** (container `info` connects to Sepolia, derives agent addr, loads config).
+- render.yaml (Render Blueprint, `worker` running `run-all 30`, restart-always) + Railway steps
+  + local-docker check in **agent/DEPLOY.md**.
+- Low-gas guard: `chain.gas_balance_wei()` + loud `low_gas` warning each sweep (<0.05 CELO).
+- **Gas decision:** agent pays gas in **native CELO**, NOT USDm. web3.py/eth-account cannot sign
+  Celo CIP-64 (feeCurrency) txs (verified: "unrecognized field") — that's a viem-only path used
+  by the MiniPay frontend for end users. Hand-rolling CIP-64 signing in the money path was
+  rejected as too fragile. Keep a small CELO float on the mainnet agent account.
+- **Phase-6 deps:** (1) deploy mainnet contracts + fill config/addresses.mainnet.json;
+  (2) factory must bake `agent` = the hosted worker's mainnet address (or setIntegrations);
+  (3) set AGENT_PRIVATE_KEY_MAINNET secret + fund it with CELO.
+
+## 🔧 LIFECYCLE WIRING FIXED (create→invite→join→start→rotate)
+- Home now lists circles you ORGANISE or are a member of (was isMember-only) → created circles show.
+- Create takes a name; routes to a **state-aware dashboard**: Forming shows an **Invite panel**
+  (QR + copy-link + reversible `AJO-…` code) + **Join this circle** + organiser **Start circle**;
+  Active shows rotation; Pay tab gated to Active. Join accepts link/`AJO`-code/address + `?c?n` deep link.
+- Invite abstraction: lib/code.ts (encode/decode/inviteLink/parseInviteInput, round-trip verified),
+  lib/names.ts (off-chain names via localStorage + link), components/InvitePanel.tsx (qrcode.react).
+- **Agent serve-all**: `chain.all_circles()` + `serve-all`/`run-all` CLI — services EVERY factory
+  circle (auto-start full Forming, trigger Active), so UI-created circles rotate autonomously.
+  Verified: enumerates all 8 circles; `npm run build` clean; all routes 200 in dev smoke.
+- Note: desktop pays gas in CELO (feeCurrency is MiniPay-only) — expected.
+
 ## 🎨 FRONTEND FURNISHED (Market Blocks design, real-wired)
 /miniapp is now the full brand: landing at `/` + the 10-screen MiniPay app at `/app/*`
 (home/welcome, create, join, circle/[address] dashboard+pay+activity+your-turn+default,

@@ -1,0 +1,26 @@
+# Render Blueprint — AjoAI autonomous agent as an always-on background worker.
+# Deploy: push this repo, then New → Blueprint in Render and point it here.
+# Set the secret AGENT_PRIVATE_KEY_MAINNET in the dashboard (sync:false keeps it out of git).
+services:
+  - type: worker
+    name: ajoai-agent
+    runtime: docker
+    dockerfilePath: ./agent/Dockerfile
+    dockerContext: .
+    plan: starter
+    autoDeploy: true
+    envVars:
+      - key: CHAIN
+        value: mainnet
+      - key: RPC_URL
+        value: https://forno.celo.org
+      - key: AGENT_PRIVATE_KEY_MAINNET
+        sync: false # set in dashboard — the hosted agent's mainnet key (separate from dev)
+      - key: FEE_CURRENCY
+        value: USDm
+      - key: SIMULATE_YIELD
+        value: "true"
+      - key: SIMULATE_SELF
+        value: "false"
+      - key: LOG_LEVEL
+        value: info

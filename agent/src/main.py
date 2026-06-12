@@ -2,10 +2,14 @@
 
   python -m src.main status [CIRCLE]      # perceive + print a circle snapshot
   python -m src.main run-once [CIRCLE]     # one perceive->reason->act->settle pass
-  python -m src.main run [CIRCLE]          # scheduled loop (idempotent)
+  python -m src.main run [CIRCLE]          # scheduled loop (idempotent), one circle
+  python -m src.main serve-all             # one sweep over EVERY factory circle
+  python -m src.main run-all [SECONDS]     # scheduled sweep over every factory circle
   python -m src.main info                  # config + connectivity check
 
 CIRCLE defaults to deployments.demoCircle in config/addresses.<chain>.json.
+serve-all / run-all service every circle the factory deployed (each bakes our agent key),
+so a circle created from the MiniPay app rotates autonomously without being named explicitly.
 """
 
 from __future__ import annotations
@@ -26,6 +30,36 @@ def _circle_arg(settings, argv) -> str:
     if settings.demo_circle:
         return settings.demo_circle
     raise SystemExit("no circle address given and no demoCircle in config")
+
+
+# Warn loudly before the agent runs out of gas (it pays gas in native CELO; top up the agent
+# account). Threshold ~0.05 CELO — a few dozen triggers of headroom.
+LOW_GAS_WEI = 50_000_000_000_000_000  # 0.05 CELO
+
+
+def _sweep(agent, chain, log) -> None:
+    """One pass over every factory circle: start full-Forming ones, trigger Active ones, skip
+    terminal. Idempotent — each run_once re-reads chain state before acting (CLAUDE.md §8)."""
+    bal = chain.gas_balance_wei()
+    if bal < LOW_GAS_WEI:
+        log.warning(
+            "low_gas",
+            agent=chain.address,
+            balanceCELO=bal / 1e18,
+            detail="top up the agent account with CELO or the agent cannot trigger payouts",
+        )
+    circles = chain.all_circles()
+    log.info("serve_all_sweep", count=len(circles), gasBalanceCELO=round(bal / 1e18, 4))
+    for addr in circles:
+        try:
+            v = chain.view_circle(addr)
+            if v.state >= 2:  # Completed/Defaulted/Dissolved — nothing to do
+                continue
+            results = agent.run_once(addr)
+            if results:
+                log.info("serviced", circle=addr, state=v.state_name, results=results)
+        except Exception as e:  # noqa: BLE001 — never let one circle stall the sweep
+            log.warning("serve_all_error", circle=addr, error=str(e))
 
 
 def main() -> None:
@@ -49,6 +83,29 @@ def main() -> None:
             simulate_self=settings.simulate_self,
             simulate_yield=settings.simulate_yield,
         )
+        return
+
+    if cmd == "serve-all":
+        _sweep(Agent(settings, chain), chain, log)
+        return
+
+    if cmd == "run-all":
+        interval = int(sys.argv[2]) if len(sys.argv) > 2 else 30
+        agent = Agent(settings, chain)
+        log.info("serve_all_start", intervalSeconds=interval, factory=settings.factory)
+        sched = BlockingScheduler()
+        sched.add_job(
+            lambda: _sweep(agent, chain, log),
+            "interval",
+            seconds=interval,
+            id="ajoai-serve-all",
+            max_instances=1,
+            coalesce=True,
+        )
+        try:
+            sched.start()
+        except (KeyboardInterrupt, SystemExit):
+            log.info("scheduler_stop")
         return
 
     addr = _circle_arg(settings, sys.argv)

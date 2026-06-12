@@ -6,7 +6,7 @@ import { celo, celoSepolia } from "./chain";
 // We target the injected provider; the connect button is hidden inside MiniPay (see providers).
 export const config = createConfig({
   chains: [celoSepolia, celo],
-  connectors: [injected({ target: "metaMask" })],
+  connectors: [injected()],
   transports: {
     [celoSepolia.id]: http(),
     [celo.id]: http(),
