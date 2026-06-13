@@ -5,6 +5,8 @@
 *.key
 *.pem
 config/secrets.json
+agent/.mainnet_members.json
+agent/.self_session.json
 
 # ─── Generated deploy/run artifacts ───
 config/deployments.*.json

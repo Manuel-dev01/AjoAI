@@ -7,13 +7,30 @@
 ---
 
 ## ⚠️ HIGHEST-RISK UNKNOWN (top of mind)
-**TIME.** Submissions close **June 15 (9AM GMT), 2026**; today is **2026-06-12** → **~3 days**.
-Core product is DONE (contracts+agent+frontend, all builds green, live on Sepolia). Remaining is
-SUBMISSION-CRITICAL + human-gated: (1) **register tweet** @CeloDevs/@Celo + ERC-8004 link;
-(2) **Self Agent ID** (your passport via Self app, or region screenshot) — agent/SELF_AGENT_ID.md;
-(3) **mainnet-early deploy** (fund AGENT_PRIVATE_KEY_MAINNET; bake agent into factory) → drives
-T1 activity weight + T2; (4) **deploy /miniapp to Vercel** for the live URL + re-register agentURI;
-(5) **submit via Celo Builders Skill** (`celo-onchain-agents`, opens June 8) — NOT Karma GAP.
+**TIME + final submission.** Submissions close **June 15 (9AM GMT), 2026**; today is **2026-06-13**.
+**Phase 6 mainnet-early is DONE** (deploy + 8004 register + real-USDT rotation + Railway hosting —
+see the mainnet block below). Remaining is human/submission-only: (1) **Self Agent ID** — session
+bootstrapped, **you scan your passport** (Self app; region screenshot fallback), then
+`python -m scripts.self_poll` finishes it; (2) **redeploy /miniapp on Vercel** so the agent card
+serves the new mainnet agentId 9339; (3) **register tweet** quote-tweeting @CeloDevs/@Celo with the
+ERC-8004 link; (4) **submit via Celo Builders Skill** (`celo-onchain-agents`) — NOT Karma GAP.
+
+## 🟢 LIVE ON CELO MAINNET (2026-06-13, chainId 42220) — Phase 6 mainnet-early DONE
+All three contracts source-verified (Sourcify exact_match) on Celoscan:
+- CircleFactory:    0xE2401Ab2ea9E4c68cBA9946e4079cd7eF4d82186
+- ReputationLedger: 0xd2f340Fe1616aB5190F326A6f127f852F5C5Ed04
+- YieldAdapter:     0xF9293905e64c39C5856CE4Aa895ab7c80F62014d
+- Agent/deployer:   0x8974881E39a5eF62214929B6CaA6EC0C6e7D47c7 (baked into factory; ~39 CELO)
+- **ERC-8004 mainnet agentId 9339** (Identity Registry 0x8004A169…; tx 0x46cb085c…) → https://8004scan.io/agents/celo/9339
+  (verified on-chain: ownerOf(9339)=agent, tokenURI=Vercel card). NOTE: 8004scan URL = /agents/<chainName>/<id>, NOT /agent/<chainId>/<id>.
+- **Real-USDT autonomous rotation** circle 0x4D03D887c3bB293623A8aF842DB80B4680a5E11F: 3 members,
+  real Tether USD₮ (6-dec, 0.3 each), **agent triggered all 3 payouts + finalize**, state **Completed**,
+  **reconcile in==out==3.6 USD₮**, member scores all 8. **$4 fully recovered** (agentUsdtBefore==After==4.041751;
+  only CELO gas spent). payouts 9924e896 / b1cbabf8 / 4b75411f ; finalize 2ca4f1a4 ; create 252e8cc7.
+- **Hosted agent (Railway):** project `ajoai-agent`, worker `run-all 30` on CHAIN=mainnet — logs
+  `serve_all_sweep` every 30s against the mainnet factory. Autonomous, no laptop. (also a Render blueprint exists.)
+- Config: addresses.mainnet.json (deployments + USDT 0x48065fbBE25f…D5e), config/demo_run.mainnet.json,
+  config/agent-id.mainnet.json. mainnet_seed.py runner (fund-safe: persists keys + sweeps back).
 
 ---
 

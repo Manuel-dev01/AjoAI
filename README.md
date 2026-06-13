@@ -57,7 +57,34 @@ units** (no wei created or destroyed, on-chain).
 
 Each member earned an on-chain savings-credit score of **9** (4 on-time contributions
 + clean completion). The demo token is a MockERC20 mirroring NGNm's 18 decimals
-(loudly logged as a mock); the Phase-6 mainnet seed uses real Mento NGNm.
+(loudly logged as a mock); the mainnet rotation below uses **real Tether USD₮**.
+
+## Live on Celo mainnet (chainId 42220) — real money, verifiable now
+All contracts source-verified on [Celoscan](https://celoscan.io) (Sourcify exact_match).
+
+| Contract | Address |
+|---|---|
+| CircleFactory | [`0xE2401Ab2…2186`](https://celoscan.io/address/0xE2401Ab2ea9E4c68cBA9946e4079cd7eF4d82186) |
+| ReputationLedger | [`0xd2f340Fe…Ed04`](https://celoscan.io/address/0xd2f340Fe1616aB5190F326A6f127f852F5C5Ed04) |
+| YieldAdapter | [`0xF9293905…014d`](https://celoscan.io/address/0xF9293905e64c39C5856CE4Aa895ab7c80F62014d) |
+
+**ERC-8004 agent identity:** registered as **agentId 9339** on the mainnet Identity Registry
+(`0x8004A169…`) — [8004scan](https://8004scan.io/agents/celo/9339) (track #3, Celo mainnet rank).
+
+### Proof: a real-USD₮ autonomous rotation on mainnet
+A 3-member circle in **real Tether USD₮** (6 decimals): the agent triggered **all 3 payouts** and
+`finalize`. Circle [`0x4D03…E11F`](https://celoscan.io/address/0x4D03D887c3bB293623A8aF842DB80B4680a5E11F)
+finished **Completed**, `roundsPaid = 3`, **reconcile in == out == 3.6 USD₮** (no wei created or
+destroyed, real money). Members scored **8** each; the seed funds were fully recovered (only CELO gas spent).
+
+| Round | Autonomous payout tx |
+|---|---|
+| 0 | [`9924e896…`](https://celoscan.io/tx/0x9924e89648651020bd11d3477a6e489ff24e720a380a2198e590118c6998fd0d) |
+| 1 | [`b1cbabf8…`](https://celoscan.io/tx/0xb1cbabf84110b478e3203aeff75f96bb98128c18eb4276ac9364100fb88cf407) |
+| 2 | [`4b75411f…`](https://celoscan.io/tx/0x4b75411f6cc4b8e29887f49ab5ac6406f79e2360e18079a15a97b7079f995f7b) |
+| finalize | [`2ca4f1a4…`](https://celoscan.io/tx/0x2ca4f1a477a4f70a12746f51a29673790102cd38f7a59215c8667bfa59497220) |
+
+The agent runs as an always-on Railway worker (`run-all 30`) sweeping the mainnet factory every 30s.
 
 ## Built on Celo
 - **Mento** local stablecoins — **USDm** (Mento Dollar) and **NGNm** (Mento Naira);

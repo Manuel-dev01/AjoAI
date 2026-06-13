@@ -81,13 +81,15 @@ def main() -> None:
     rcpt = w3.eth.wait_for_transaction_receipt(h)
     assert rcpt["status"] == 1, f"register failed: {h.hex()}"
 
+    # 8004scan uses /agents/<chainName>/<agentId> (chain NAME, not chainId).
+    scan_chain = {"mainnet": "celo", "sepolia": "celo-sepolia"}.get(s.chain, s.chain)
     out = {
         "chain": s.chain,
         "identityRegistry": reg_addr,
         "agentId": int(agent_id),
         "agentWallet": acct.address,
         "tx": h.hex(),
-        "explorer8004": f"https://8004scan.io/agent/{s.chain_id}/{int(agent_id)}",
+        "explorer8004": f"https://8004scan.io/agents/{scan_chain}/{int(agent_id)}",
         "explorerTx": f"{s.explorer}/tx/0x{h.hex().removeprefix('0x')}",
     }
     (REPO_ROOT / "config" / f"agent-id.{s.chain}.json").write_text(

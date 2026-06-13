@@ -6,26 +6,26 @@ It's the entrypoint to the **Celo Agent Visa**. For this hackathon it's **not re
 beneficial for Track 1 (Best Agent, $2,500)** — and a judge is **Marek Olszewski, co-founder of
 Celo *and* Self**. (You *must* be a real human with a supported passport; see the region caveat.)
 
-This is **human-gated** (a passport scan in the Self mobile app) and **wallet/identity-personal**,
-so *you* complete it — it can't be automated. Two paths:
+Only the **passport scan** is human-gated; the registration **session is bootstrapped
+programmatically** by the agent (CLAUDE.md §8). Mainnet agent wallet (humanAddress / owner):
+**`0x8974881e39a5ef62214929b6caa6ec0c6e7d47c7`** (the key baked into the mainnet factory).
 
-## Path A — Web UI (easiest)
-1. Go to **https://app.ai.self.xyz/register**.
-2. Choose mode **agent-identity**, network **Celo Sepolia (testnet)** (chainId 11142220) — or
-   **mainnet** for the final submission.
-3. Enter the agent wallet: **`0x5b92F8A222704d522Fb3dCf8d734C3DAF51Fc4f1`** (our agent key;
-   the one baked into the factory). Follow the guided flow.
-4. Scan the QR with the **Self mobile app**, then scan your **passport (NFC)** to generate the
-   ZK proof. A **soulbound ERC-721** is minted binding the agent to your verified identity.
+## Path A — Agent bootstrap (what we use; mainnet)
+The agent drives the Self API; you only scan. See `scripts/self_poll.py`.
+1. Discover the API: `curl https://app.ai.self.xyz/api/agent/bootstrap` (OpenAPI spec).
+2. Start a session — `POST /api/agent/register` with
+   `{"mode":"linked","network":"mainnet","humanAddress":"0x8974…d47c7"}` → returns a
+   `sessionToken`, `scanUrl`, `deepLink`, QR, and a server-generated Self agent address
+   (`linked` mode). Saved to gitignored `agent/.self_session.json`.
+3. **You scan:** open the `scanUrl` (or `deepLink`) → Self app → scan your **passport (NFC)**.
+4. The agent polls: `agent/.venv/Scripts/python -m scripts.self_poll` polls
+   `GET /api/agent/register/status?token=…` until stage `registered`, then writes
+   `config/self-agent-id.mainnet.json` and patches `selfAgentId` in both agent-card.json copies.
+   A **soulbound NFT** binds the Self agent identity to your passport-verified `0x8974…` owner.
 
-## Path B — CLI (per github.com/selfxyz/self-agent-id — confirm exact package at run time)
-```bash
-npm install -g @selfxyz/agent-sdk        # provides the `self-agent` CLI (verify on the repo)
-self-agent register init  --mode agent-identity --human-address <YOUR_WALLET> --network testnet
-self-agent register open  --session .self/session.json     # shows QR → scan in Self app + passport
-self-agent register wait  --session .self/session.json     # polls until on-chain
-```
-`--human-address` is **your** wallet (receives the soulbound NFT). The agent keypair is bound to it.
+## Path B — Web UI (fallback)
+Go to **https://app.ai.self.xyz/register**, choose **agent-identity**, network **Celo mainnet**,
+enter the agent wallet **`0x8974881e39a5ef62214929b6caa6ec0c6e7d47c7`**, scan QR + passport.
 
 ## Region caveat (important for the builder in Lagos)
 If Self is **not available in your country**, the hackathon FAQ says: submit a **screenshot of the

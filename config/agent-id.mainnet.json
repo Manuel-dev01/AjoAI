@@ -1,0 +1,9 @@
+{
+  "chain": "mainnet",
+  "identityRegistry": "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432",
+  "agentId": 9339,
+  "agentWallet": "0x8974881E39a5eF62214929B6CaA6EC0C6e7D47c7",
+  "tx": "46cb085ce1e8add38232d62ddce9aa602953f1740acac04c093297c4ae62eb44",
+  "explorer8004": "https://8004scan.io/agents/celo/9339",
+  "explorerTx": "https://celoscan.io/tx/0x46cb085ce1e8add38232d62ddce9aa602953f1740acac04c093297c4ae62eb44"
+}
