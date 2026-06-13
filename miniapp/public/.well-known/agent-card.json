@@ -10,7 +10,7 @@
   "skills": [
     { "id": "rosca.create", "name": "Create circle", "description": "Deploy a savings circle with fixed contribution, period, and rotation." },
     { "id": "rosca.contribute", "name": "Collect contributions", "description": "Pull each member's periodic contribution in a Mento stablecoin." },
-    { "id": "rosca.payout", "name": "Autonomous payout", "description": "Pay the full pot to the round's recipient on schedule — no human in the loop." },
+    { "id": "rosca.payout", "name": "Autonomous payout", "description": "Pay the full pot to the round's recipient on schedule, no human in the loop." },
     { "id": "rosca.default-recovery", "name": "Default recovery", "description": "Cover missed rounds from security deposits; write negative ERC-8004 reputation." },
     { "id": "rosca.reputation", "name": "Savings-credit score", "description": "Issue a portable ERC-8004 savings-credit score per member." },
     { "id": "nl.query", "name": "Natural-language member Q&A", "description": "Answer member questions in English, Nigerian Pidgin, and Swahili (explains chain state; never authorizes money)." }

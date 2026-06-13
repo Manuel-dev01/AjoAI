@@ -1,11 +1,11 @@
-# AjoAI — Autonomous Rotating-Savings Agent on Celo
+# AjoAI: Autonomous Rotating-Savings Agent on Celo
 
 > Onchain Agents Hackathon: Build for Real-World Payments & Everyday Applications.
 > **Agents for a real economy, not a casino.**
 
-AjoAI turns Africa's most common informal savings institution — the rotating
+AjoAI turns Africa's most common informal savings institution, the rotating
 savings circle (**ajo / esusu** in Nigeria, **chama** in Kenya, **stokvel** in
-South Africa) — into an autonomous on-chain agent inside MiniPay. Members join by
+South Africa), into an autonomous on-chain agent inside MiniPay. Members join by
 phone, save in local Mento stablecoins, and the agent runs the whole circle:
 collecting contributions, executing the payout rotation, parking idle funds,
 enforcing defaults, and turning a completed circle into a portable savings-credit
@@ -15,9 +15,9 @@ score.
 A rotating savings circle: a group each contributes a fixed amount every period,
 and each period one member receives the whole pot, until everyone has received
 exactly once. AjoAI makes each circle an autonomous agent that:
-1. Onboards members by phone number (with Self proof-of-personhood — one human, one slot).
+1. Onboards members by phone number (with Self proof-of-personhood, one human, one slot).
 2. Custodies + collects fixed contributions in a local stablecoin.
-3. Executes the payout rotation automatically — **no human in the loop**.
+3. Executes the payout rotation automatically, **no human in the loop**.
 4. Parks idle pot funds in yield between payouts.
 5. Enforces defaults via security deposits + on-chain penalties + ERC-8004 reputation.
 6. Issues each member a portable savings-credit score.
@@ -25,10 +25,10 @@ exactly once. AjoAI makes each circle an autonomous agent that:
 
 **Safety model (enforced, not promised):** the **contract holds the money and
 enforces every rule**; the **agent only triggers legal transitions** and can never
-drain a circle or pay an arbitrary address; the **LLM never moves funds** — it only
+drain a circle or pay an arbitrary address; the **LLM never moves funds**, it only
 explains chain state.
 
-## Live on Celo Sepolia (chainId 11142220) — verifiable now
+## Live on Celo Sepolia (chainId 11142220), verifiable now
 All contracts source-verified on [Blockscout](https://celo-sepolia.blockscout.com).
 
 | Contract | Address |
@@ -39,10 +39,10 @@ All contracts source-verified on [Blockscout](https://celo-sepolia.blockscout.co
 | Example Circle (NGNm) | [`0xc578127F…6cb4`](https://celo-sepolia.blockscout.com/address/0xc578127F2978896ef1b4995CE44D780C89676cb4) |
 
 **ERC-8004 agent identity:** registered as **agentId 307** on the Identity
-Registry (`0x8004A818…`) — track #3 (8004scan rank).
+Registry (`0x8004A818…`), track #3 (8004scan rank).
 
 ### Proof: a complete autonomous rotation (real Sepolia txs)
-The agent drove an entire 4-member circle end-to-end — every payout triggered by the
+The agent drove an entire 4-member circle end-to-end, every payout triggered by the
 agent, not a human. Circle [`0x3DdF…3c68`](https://celo-sepolia.blockscout.com/address/0x3DdF59747B9592b50D40fbBCcaD958078E9b3c68)
 finished in state **Completed**, `roundsPaid = 4`, and **reconcile in == out == 2000
 units** (no wei created or destroyed, on-chain).
@@ -59,7 +59,7 @@ Each member earned an on-chain savings-credit score of **9** (4 on-time contribu
 + clean completion). The demo token is a MockERC20 mirroring NGNm's 18 decimals
 (loudly logged as a mock); the mainnet rotation below uses **real Tether USD₮**.
 
-## Live on Celo mainnet (chainId 42220) — real money, verifiable now
+## Live on Celo mainnet (chainId 42220), real money, verifiable now
 All contracts source-verified on [Celoscan](https://celoscan.io) (Sourcify exact_match).
 
 | Contract | Address |
@@ -69,7 +69,7 @@ All contracts source-verified on [Celoscan](https://celoscan.io) (Sourcify exact
 | YieldAdapter | [`0xF9293905…014d`](https://celoscan.io/address/0xF9293905e64c39C5856CE4Aa895ab7c80F62014d) |
 
 **ERC-8004 agent identity:** registered as **agentId 9339** on the mainnet Identity Registry
-(`0x8004A169…`) — [8004scan](https://8004scan.io/agents/celo/9339) (track #3, Celo mainnet rank).
+(`0x8004A169…`), [8004scan](https://8004scan.io/agents/celo/9339) (track #3, Celo mainnet rank).
 
 ### Proof: a real-USD₮ autonomous rotation on mainnet
 A 3-member circle in **real Tether USD₮** (6 decimals): the agent triggered **all 3 payouts** and
@@ -87,30 +87,29 @@ destroyed, real money). Members scored **8** each; the seed funds were fully rec
 The agent runs as an always-on Railway worker (`run-all 30`) sweeping the mainnet factory every 30s.
 
 ## Built on Celo
-- **Mento** local stablecoins — **USDm** (Mento Dollar) and **NGNm** (Mento Naira);
+- **Mento** local stablecoins, **USDm** (Mento Dollar) and **NGNm** (Mento Naira);
   save in your own currency. (Mento rebranded cUSD→USDm, cNGN→NGNm.)
-- **MiniPay** — phone-number onboarding + distribution to 15M+ wallets.
-- **CIP-64 fee abstraction** — pay gas in stablecoins, no CELO needed.
-- **Self** — ZK proof-of-personhood (live on Celo Sepolia); one human, one slot.
-- **ERC-8004** — portable agent identity + savings reputation (Identity + Reputation).
-- **x402** — premium endpoints (guarantor score, analytics) for other agents (planned).
+- **MiniPay**, phone-number onboarding + distribution to 15M+ wallets.
+- **CIP-64 fee abstraction**, pay gas in stablecoins, no CELO needed.
+- **Self**, ZK proof-of-personhood (live on Celo Sepolia); one human, one slot.
+- **ERC-8004**, portable agent identity + savings reputation (Identity + Reputation).
+- **x402**, premium endpoints (guarantor score, analytics) for other agents (planned).
 
-## The four judging pillars
+## The four pillars
 | Pillar | In AjoAI |
 |---|---|
-| **Economic agency** | Agent autonomously triggers payouts, idle-fund parking, penalty/default recovery — no human per cycle |
-| **On-chain integration** | Custom escrow/rotation contracts, ERC-8004 identity + reputation writes, fee-abstracted txs — every action → a tx hash |
+| **Economic agency** | Agent autonomously triggers payouts, idle-fund parking, penalty/default recovery, no human per cycle |
+| **On-chain integration** | Custom escrow/rotation contracts, ERC-8004 identity + reputation writes, fee-abstracted txs, every action → a tx hash |
 | **Real-world applicability** | Digitizes the most common informal savings institution in Africa |
 | **Creative use of Celo infra** | Mento local stables (USDm/NGNm), MiniPay phone onboarding, Self sybil resistance, CIP-64 gas-in-stablecoin |
 
 ## Repository
 | Path | What |
 |---|---|
-| `/contracts` | Solidity (Foundry) — `Circle`, `CircleFactory`, adapters; **25 tests** (worked example, adversarial, invariants) |
+| `/contracts` | Solidity (Foundry), `Circle`, `CircleFactory`, adapters; **25 tests** (worked example, adversarial, invariants) |
 | `/agent` | Python runtime (perceive→reason→act→settle), NL handler, ERC-8004 registration; **13 tests** |
 | `/miniapp` | MiniPay Mini App frontend (viem/wagmi) |
 | `/config` | Per-chain addresses + ABIs + agent card |
-| `/docs` | Verification, state machine, architecture, demo, pitch |
 
 ## Quick start
 ```bash
@@ -128,13 +127,12 @@ Config + secrets: copy `env.example` → `.env`. Addresses are read from
 
 ## Model / framework / tools
 - **Contracts:** Solidity 0.8.28 + Foundry + OpenZeppelin v5.
-- **Agent:** Python (web3.py) — perceive→reason→act→settle; APScheduler; structlog.
+- **Agent:** Python (web3.py), perceive→reason→act→settle; APScheduler; structlog.
 - **LLM (NL handler only, never moves money):** Claude (`claude-haiku-4-5`).
 - **Frontend:** Celo Composer MiniPay template + viem/wagmi.
 
 ## Status
-See `STATUS.md`. Built with Claude Code following `docs/BUILD_PLAN.md`, with a hard
-Phase-0 verification gate (`docs/VERIFICATION.md`).
+See `STATUS.md` for the current deployment state, test coverage, and remaining work.
 
 ## License
-MIT — see `LICENSE`.
+MIT. See `LICENSE`.

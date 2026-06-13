@@ -1,218 +1,68 @@
-# STATUS.md — AjoAI Living Status
+# AjoAI Project Status
 
-> Updated after EVERY phase / significant work session. Read at session start.
-> Keep the highest-risk unknown at the TOP. Keep it short — this is a dashboard,
-> not a log.
+Last updated: 2026-06-13.
 
----
+AjoAI is an autonomous rotating-savings (ajo / esusu / chama / stokvel) agent on Celo,
+distributed as a MiniPay Mini App. The contract holds the money and enforces every rule; the
+agent only triggers legal state transitions; the LLM is restricted to natural-language Q&A and
+never moves funds.
 
-## ⚠️ HIGHEST-RISK UNKNOWN (top of mind)
-**TIME + final submission.** Submissions close **June 15 (9AM GMT), 2026**; today is **2026-06-13**.
-**Phase 6 mainnet-early is DONE** (deploy + 8004 register + real-USDT rotation + Railway hosting —
-see the mainnet block below). Remaining is human/submission-only: (1) **Self Agent ID** — session
-bootstrapped, **you scan your passport** (Self app; region screenshot fallback), then
-`python -m scripts.self_poll` finishes it; (2) **redeploy /miniapp on Vercel** so the agent card
-serves the new mainnet agentId 9339; (3) **register tweet** quote-tweeting @CeloDevs/@Celo with the
-ERC-8004 link; (4) **submit via Celo Builders Skill** (`celo-onchain-agents`) — NOT Karma GAP.
+## Live on Celo mainnet (chainId 42220)
+All three contracts are source-verified (Sourcify exact_match) on Celoscan.
 
-## 🟢 LIVE ON CELO MAINNET (2026-06-13, chainId 42220) — Phase 6 mainnet-early DONE
-All three contracts source-verified (Sourcify exact_match) on Celoscan:
-- CircleFactory:    0xE2401Ab2ea9E4c68cBA9946e4079cd7eF4d82186
-- ReputationLedger: 0xd2f340Fe1616aB5190F326A6f127f852F5C5Ed04
-- YieldAdapter:     0xF9293905e64c39C5856CE4Aa895ab7c80F62014d
-- Agent/deployer:   0x8974881E39a5eF62214929B6CaA6EC0C6e7D47c7 (baked into factory; ~39 CELO)
-- **ERC-8004 mainnet agentId 9339** (Identity Registry 0x8004A169…; tx 0x46cb085c…) → https://8004scan.io/agents/celo/9339
-  (verified on-chain: ownerOf(9339)=agent, tokenURI=Vercel card). NOTE: 8004scan URL = /agents/<chainName>/<id>, NOT /agent/<chainId>/<id>.
-- **Real-USDT autonomous rotation** circle 0x4D03D887c3bB293623A8aF842DB80B4680a5E11F: 3 members,
-  real Tether USD₮ (6-dec, 0.3 each), **agent triggered all 3 payouts + finalize**, state **Completed**,
-  **reconcile in==out==3.6 USD₮**, member scores all 8. **$4 fully recovered** (agentUsdtBefore==After==4.041751;
-  only CELO gas spent). payouts 9924e896 / b1cbabf8 / 4b75411f ; finalize 2ca4f1a4 ; create 252e8cc7.
-- **Hosted agent (Railway):** project `ajoai-agent`, worker `run-all 30` on CHAIN=mainnet — logs
-  `serve_all_sweep` every 30s against the mainnet factory. Autonomous, no laptop. (also a Render blueprint exists.)
-- Config: addresses.mainnet.json (deployments + USDT 0x48065fbBE25f…D5e), config/demo_run.mainnet.json,
-  config/agent-id.mainnet.json. mainnet_seed.py runner (fund-safe: persists keys + sweeps back).
+| Component | Address / value |
+|---|---|
+| CircleFactory | `0xE2401Ab2ea9E4c68cBA9946e4079cd7eF4d82186` |
+| ReputationLedger | `0xd2f340Fe1616aB5190F326A6f127f852F5C5Ed04` |
+| YieldAdapter | `0xF9293905e64c39C5856CE4Aa895ab7c80F62014d` |
+| Agent (baked into factory) | `0x8974881E39a5eF62214929B6CaA6EC0C6e7D47c7` |
+| ERC-8004 agent identity | agentId 9339 (Identity Registry `0x8004A169…`), https://8004scan.io/agents/celo/9339 |
 
----
+A real-money autonomous rotation has completed on mainnet: a 3-member circle in real Tether
+USD₮ (6 decimals) where the agent triggered all three payouts and finalize. Circle
+`0x4D03D887c3bB293623A8aF842DB80B4680a5E11F` finished Completed, roundsPaid 3, reconcile
+in == out == 3.6 USD₮, every member scored 8. The seed funds were fully recovered (only CELO
+gas was spent). Run report: `config/demo_run.mainnet.json`.
 
-## CURRENT PHASE
-Phases 0–5 DONE. Frontend furnished (Market Blocks landing + 10-screen app, real-wired, lifecycle
-fixed, faucet). Agent hosting ready. **Phase 6 (submission) is the remaining work** — mostly the
-5 human/submission steps above.
+The agent runs as an always-on Railway worker (`run-all 30`, CHAIN=mainnet), sweeping the
+mainnet factory every 30 seconds with no operator in the loop.
 
-## ⚠️ HIGHEST-RISK UNKNOWN (updated)
-Gas unblocked — dev key topped up to **11.7 CELO** (2026-06-02). Full 4-member
-autonomous rotation running now. Remaining risks are external/validation: MiniPay
-device testing (Phase 5) and the separate mainnet key funding (Phase 6 mainnet-early).
+## Live on Celo Sepolia (chainId 11142220)
+Testnet validation, all contracts source-verified on Blockscout. A full 4-member rotation
+completed end-to-end (circle `0x3DdF59747B9592b50D40fbBCcaD958078E9b3c68`, Completed,
+reconcile in == out == 2000 units). ERC-8004 agentId 307. Used for the in-app faucet flow with
+mintable test tokens, since real Mento stablecoins are not faucetable on testnet.
 
-## 🟢 LIVE ON CELO SEPOLIA (2026-06-02, chainId 11142220)
-All four contract types source-verified on Blockscout (celo-sepolia.blockscout.com):
-- CircleFactory:   0x032fEE1776508fE59bA715120Bc190b682162191
-- ReputationLedger:0x12Ac76Fd85500fd1dF47D6bF15B6B275eA3FB3Ce
-- YieldAdapter:    0x22b1AA6022AfE68F5F019229Bf785D8083cD3640
-- Demo Circle:     0xc578127F2978896ef1b4995CE44D780C89676cb4 (NGNm, 4 slots, Forming)
-- Agent/deployer:  0x5b92F8A222704d522Fb3dCf8d734C3DAF51Fc4f1
-On-chain smoke test passed: createCircle works, reputation auto-authorize fired (isWriter=true).
+## Implementation
+- Contracts (Foundry): `Circle`, `CircleFactory`, `ReputationLedger`, `SimulatedYieldAdapter`,
+  interfaces and mocks. 25 tests pass: the worked example to the unit, adversarial cases
+  (double-trigger, reentrancy on payout and yield, contribute-after-default,
+  recipient-delinquent withhold and cure, default by an already-received member, rounding
+  drift), and 3 invariants (value conservation, received == roundsPaid, delinquent recipient
+  unpaid) at 256x8192 calls with 0 reverts.
+- Agent (Python, web3.py): perceive, reason, act, settle loop with rule-based decisions, an
+  idempotent scheduler, structlog tx-hash-linked logs, ERC-8004 registration, a natural-language
+  handler (English, Nigerian Pidgin, Swahili), and a fund-safe mainnet seed runner. 13 tests pass.
+- Frontend (Next.js, viem/wagmi): Market Blocks landing page plus the MiniPay app (home, create,
+  join, state-aware circle dashboard, pay, activity, score). Injected auto-connect inside MiniPay,
+  stablecoin gas via CIP-64, reversible invite codes, QR sharing, and a testnet faucet gate.
 
-## 🏆 TRACK #3 ADDRESSED — ERC-8004 agent registered
-- **agentId 307** on the ERC-8004 Identity Registry (0x8004A818…); tx 0x5ac0763b…
-  → visible on 8004scan (agentURI → config/agent-card.json). config/agent-id.sepolia.json.
+## Key design decisions
+- Single Mento stablecoin per circle; period is a constructor parameter. Member count is bounded
+  by `slots` (uint8), so member loops cannot be gas-griefed.
+- Payout always makes the recipient whole: shortfalls are covered first from defaulters' deposits
+  (auto-swept in `triggerPayout`), then from the penalty pool; if still uncoverable the circle
+  moves to Defaulted with pro-rata distribution to members who have not yet received.
+- A delinquent recipient has their payout withheld (not skipped) until they cure. Reputation
+  writes are wrapped so they can never block a money path.
+- The agent pays gas in native CELO (web3.py cannot sign Celo CIP-64); only the MiniPay frontend
+  pays gas in a stablecoin. Idle-fund yield is principal-only on-chain with the rate simulated
+  loudly at the agent layer.
 
-## 🎬 DEMO CENTERPIECE DONE — full autonomous rotation on Sepolia (verified)
-Circle 0x3DdF59747B9592b50D40fbBCcaD958078E9b3c68 → state **Completed**, roundsPaid 4,
-**reconcile in==out==2000e18** (no wei created/destroyed, on real chain). The AGENT
-triggered all 4 payouts (economic agency) + finalize. Member scores all 9 (on-chain).
-- payouts: e57366f3 / 393cdbc9 / 4280b929 / 445b4fe7 ; finalize: 02c5da0d (all status 1)
-- Mock token (mirrors NGNm 18-dec, loudly logged); real NGNm reserved for Phase-6 mainnet seed.
-- Also feeds track #2 (Most On-chain Transactions): ~40 real txs from this run.
-- Dev key topped up to 11.7 CELO; rotation reproducible via `python -m scripts.demo_rotation`.
-
-## DONE
-- Phase 0 verification → docs/VERIFICATION.md; GATE 0 approved (all §E + mainnet-early).
-- Phase 1: spec diff applied to CLAUDE.md; STACK.md locked; config + env filled;
-  monorepo dirs + CI; STATE_MACHINE.md reviewed. GATE 1 approved.
-- Phase 2 contracts: Circle.sol + CircleFactory.sol + adapters (SimulatedYieldAdapter,
-  ReputationLedger) + interfaces + mocks. Foundry project (vendored forge-std + OZ v5.1).
-- **25 tests pass** (forge fmt clean): §5 worked example number-for-number; lifecycle/
-  personhood/rotation/dissolve/exit/yield; adversarial (double-trigger, reentrancy on
-  payout, contribute-after-default, recipient-delinquent withhold+cure, default-by-
-  already-received, rounding); 3 invariants (conservation, received==roundsPaid,
-  delinquent-recipient-unpaid) at 256×8192 calls, 0 reverts.
-- Deploy.s.sol ready (writes config/deployments.<chain>.json); dry-run validated.
-- git initialized (no commits, no co-author trail); .env gitignored.
-
-## KEY DECISIONS
-- Chain config-switchable; default Celo Sepolia (11142220); mainnet 42220, EARLY.
-- Stack LOCKED: Foundry + Python agent (web3.py + chaoschain-sdk + self.xyz +
-  APScheduler + structlog + pytest) + Celo Composer MiniPay; ABIs in config/abi/
-  are the cross-language contract.
-- Agent non-custodial; contract is source of truth; LLM never moves money.
-- Security-deposit model for default recovery (CLAUDE.md §4).
-- Tokens: USDm + NGNm only for the demo (Mento rebrand; cKES/cGHS unconfirmed).
-
-## KEY CONTRACT DECISIONS (Phase 2)
-- Single token per circle; `period` configurable (GATE 1). N bounded by `slots` (uint8).
-- Payout always makes the recipient whole: shortfalls covered from defaulters'
-  deposits (auto-swept in triggerPayout via _coverRound) then the penalty pool;
-  uncoverable -> DEFAULTED with pro-rata to non-received.
-- Recipient-delinquent -> triggerPayout emits PayoutWithheld and no-ops (idempotent);
-  cleared by cure() (re-deposit). Reputation writes never block a money path (try/catch).
-- DEVIATION (scope cut, recorded): clean mid-circle exit is FORMING-only in v1;
-  mid-ACTIVE rotation resize deferred. STATE_MACHINE.md §5.7 + this line.
-
-## OPEN RISKS
-- (P0) Deployment blocked on funded Sepolia key (human action).
-- (P0) 13-day runway — scope frozen to critical path.
-- (P1) Yield venue unconfirmed on testnet -> SIMULATE_YIELD=true; on-chain park/withdraw
-  is principal-only, yield RATE simulated loudly at the agent layer.
-- (P1) MiniPay live feeCurrency set (cUSD vs USDm) — confirm in real app.
-- (P2) "Self Agent ID" vs ERC-8004 identity overlap — confirm Phase 3.
-- (P2) Real Self verifier + ERC-8004 bridge are stubbed (OPEN mode / local ledger);
-  Phase 3 wires the real registries.
-
-## PHASE 4 DONE (agent runtime core)
-- Python agent package (/agent): config loader (reads .env + addresses.<chain>.json +
-  config/abi/), web3 chain client (perceive + agent-only act), perceive→reason→act→settle
-  loop with rule-based decide() (LLM never moves money), APScheduler runner, structlog
-  tx-hash-linked logs, loud SIMULATE banners.
-- 7 agent unit tests pass (pure decide() logic mirrors contract guards).
-- **Validated live:** `python -m src.main status` reads the real Sepolia circle correctly
-  (Forming 0/4 → plans "wait"). Connectivity + ABI wiring confirmed end-to-end.
-
-## 📋 OFFICIAL RULES OBTAINED (2026-06-12) — corrections (VERIFICATION.md §B)
-- Tracks + $: **T1 Best Agent $2,500/$1,000/$500 · T2 Most Activity $500 · T3 8004scan rank $500** (T2/T3 combinable).
-- **Submission = Celo Builders Skill, NOT Karma GAP:** opens June 8 → `npx skills add https://celobuilders.xyz`
-  → "Help me submit… Celo Onchain Agents Hackathon" → `celo-onchain-agents`.
-- **Register:** quote-tweet @CeloDevs + @Celo with the **ERC-8004 link** (by June 15). Telegram for updates.
-- **Self Agent ID:** beneficial for T1; judge = Marek (co-founder Celo+Self). Region caveat → screenshot if Self unavailable.
-- Winners June 17. OpenClaw recommended (any framework OK). MiniPay "15M+".
-
-## 🐛 JOIN BUG FIXED + AGENT IDENTITY (8004scan + Self Agent ID)
-- Root cause: circles used real Mento NGNm (not faucetable on testnet) → `join` reverted on the
-  deposit transfer even after approve. Fix: deployed **mintable test tokens** on Sepolia
-  (tNGNm 0x435917C8…E6f7, tUSDm 0x3019C211…7527), app uses them via FAUCETABLE flag in lib/chain.ts,
-  + in-app **faucet** (components/Faucet.tsx) + **balance gate** in join/forming/pay so the flow
-  can't fail on insufficient balance. Mainnet will use real Mento. `npm run build` clean.
-- **8004scan:** enriched ERC-8004 agent card now hosted at miniapp `/.well-known/agent-card.json`
-  (serves 200; name/skills/registrations incl. agentId 307). register_agent.py defaults agentURI
-  to the deployed path — re-register with AJOAI_AGENT_URI=<deployed URL> so 8004scan renders it.
-- **Self Agent ID:** separate credential/auth layer (JS-first SDK) — scoped with user, not a named track.
-
-## ☁️ AGENT HOSTING (autonomous, no laptop) — ready
-- agent/Dockerfile (context=repo root, ships agent/ + config/) + .dockerignore; **image builds
-  + boots verified** (container `info` connects to Sepolia, derives agent addr, loads config).
-- render.yaml (Render Blueprint, `worker` running `run-all 30`, restart-always) + Railway steps
-  + local-docker check in **agent/DEPLOY.md**.
-- Low-gas guard: `chain.gas_balance_wei()` + loud `low_gas` warning each sweep (<0.05 CELO).
-- **Gas decision:** agent pays gas in **native CELO**, NOT USDm. web3.py/eth-account cannot sign
-  Celo CIP-64 (feeCurrency) txs (verified: "unrecognized field") — that's a viem-only path used
-  by the MiniPay frontend for end users. Hand-rolling CIP-64 signing in the money path was
-  rejected as too fragile. Keep a small CELO float on the mainnet agent account.
-- **Phase-6 deps:** (1) deploy mainnet contracts + fill config/addresses.mainnet.json;
-  (2) factory must bake `agent` = the hosted worker's mainnet address (or setIntegrations);
-  (3) set AGENT_PRIVATE_KEY_MAINNET secret + fund it with CELO.
-
-## 🔧 LIFECYCLE WIRING FIXED (create→invite→join→start→rotate)
-- Home now lists circles you ORGANISE or are a member of (was isMember-only) → created circles show.
-- Create takes a name; routes to a **state-aware dashboard**: Forming shows an **Invite panel**
-  (QR + copy-link + reversible `AJO-…` code) + **Join this circle** + organiser **Start circle**;
-  Active shows rotation; Pay tab gated to Active. Join accepts link/`AJO`-code/address + `?c?n` deep link.
-- Invite abstraction: lib/code.ts (encode/decode/inviteLink/parseInviteInput, round-trip verified),
-  lib/names.ts (off-chain names via localStorage + link), components/InvitePanel.tsx (qrcode.react).
-- **Agent serve-all**: `chain.all_circles()` + `serve-all`/`run-all` CLI — services EVERY factory
-  circle (auto-start full Forming, trigger Active), so UI-created circles rotate autonomously.
-  Verified: enumerates all 8 circles; `npm run build` clean; all routes 200 in dev smoke.
-- Note: desktop pays gas in CELO (feeCurrency is MiniPay-only) — expected.
-
-## 🎨 FRONTEND FURNISHED (Market Blocks design, real-wired)
-/miniapp is now the full brand: landing at `/` + the 10-screen MiniPay app at `/app/*`
-(home/welcome, create, join, circle/[address] dashboard+pay+activity+your-turn+default,
-score). Every app screen reads/writes the LIVE contracts (factory, circles, ReputationLedger).
-- MiniPay official patterns: viem celoSepolia/celo chains, injected({target:'metaMask'}) +
-  isMiniPay detect + hidden connect, **feeCurrency=USDm on every write** (lib/tx.ts), legacy tx.
-- `npm run build` passes clean (8 routes); dev smoke: all routes 200, no runtime errors.
-- HUMAN: device-test via ngrok → MiniPay Developer Settings → Load test page; then Vercel deploy.
-
-## DONE SINCE (this session)
-- ERC-8004 agent registration on Sepolia → agentId 307 (track #3).
-- Full autonomous rotation on Sepolia → Completed + reconciled + verified (centerpiece).
-- README (judge-facing, live addresses + agentId + payout tx table) + MIT LICENSE.
-- **Phase 5 — MiniPay mini app built** (/miniapp): Next.js + viem/wagmi, injected
-  auto-connect (hidden button), join/contribute/track/cure screens reading the live
-  circle + on-chain savings score, USDm feeCurrency noted. **`npm run build` passes clean.**
-- Removed stray .gitkeep files (per user).
-
-## NEXT (Phase 6 — submission)
-- HUMAN: device-test /miniapp inside real MiniPay; deploy to Vercel for the live URL.
-- HUMAN: fund the SEPARATE mainnet key (AGENT_PRIVATE_KEY_MAINNET) for the
-  mainnet-early seeded circle (real NGNm) → strengthens tracks #1/#2.
-- Demo video shot list + 60s pitch (note: docs/ are gitignored by user — may live in
-  README or be recorded directly). Karma GAP submission + X post tagging Celo accounts.
-- Deferred: real on-chain ISelfVerifier (Self Sepolia verifier address UNVERIFIED) —
-  frontend can use the Self SDK; contract gate stays OPEN-mode meanwhile.
-
----
-
-## 🧑‍🔧 HUMAN ACTIONS (consolidated — what only you can do)
-Priority order. I'll do everything else.
-1. **Dev wallet + Sepolia gas (NOW, unblocks deploy):** create a fresh dev key,
-   put it in `.env` as `AGENT_PRIVATE_KEY`; fund it with Celo Sepolia CELO via the
-   Google Web3 faucet (Self-gated — needs your phone for proof-of-humanity).
-2. **Test stablecoins:** get Sepolia USDm/NGNm (faucet/swap) to the dev key for demo circles.
-3. **LLM key:** Anthropic API key in `.env` as `LLM_API_KEY` (Phase 4 NL handler).
-4. **Mainnet wallet (later, mainnet-early):** SEPARATE key in `AGENT_PRIVATE_KEY_MAINNET`,
-   funded with a small real CELO + USDm/NGNm amount. Never reuse the dev key.
-5. **Phone for MiniPay + Self:** real-device MiniPay testing (Phase 5) + Self personhood scan.
-6. **Submission accounts (Phase 6):** Karma GAP project, X account to post tagging
-   @Celo/@CeloDevs/@CeloPublicGoods, hosting (Vercel) for the live miniapp URL.
-
----
-
-### Update template (copy per phase)
-```
-## CURRENT PHASE: <n — name>
-## DONE: <bullets>
-## KEY DECISIONS: <bullets>
-## OPEN RISKS: <(severity) bullets>
-## NEXT: <bullets>
-(move highest-risk unknown to the top section)
-```
+## Remaining for submission
+1. Self Agent ID: the registration session is bootstrapped programmatically; the human passport
+   scan is pending (blocked on Self ID verification, region screenshot is the documented fallback).
+   `python -m scripts.self_poll` completes it once scanned.
+2. Redeploy `/miniapp` on Vercel so the hosted agent card serves the mainnet agentId 9339.
+3. Post the registration tweet quote-tweeting @CeloDevs and @Celo with the ERC-8004 link.
+4. Submit via the Celo Builders Skill (`celo-onchain-agents`).

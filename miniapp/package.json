@@ -2,7 +2,7 @@
   "name": "ajoai-miniapp",
   "version": "0.1.0",
   "private": true,
-  "description": "AjoAI MiniPay Mini App — join, contribute, and track a rotating savings circle on Celo.",
+  "description": "AjoAI MiniPay Mini App, join, contribute, and track a rotating savings circle on Celo.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

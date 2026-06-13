@@ -1,14 +1,14 @@
 # AjoAI Agent Runtime (Python)
 
 The autonomous operator for AjoAI circles. **Non-custodial:** it only *triggers* the
-legal state transitions the `Circle` contract allows and pays gas — it can never drain a
+legal state transitions the `Circle` contract allows and pays gas, it can never drain a
 circle or pay an arbitrary address (CLAUDE.md §1). The contract is the source of truth;
 the agent reads chain state and never trusts a cached view for a money decision.
 
 ## Loop
-`perceive` (read chain) → `reason` (decide legal actions, rule-based — **never LLM**) →
+`perceive` (read chain) → `reason` (decide legal actions, rule-based, **never LLM**) →
 `act` (submit txs) → `settle` (confirm + structured log). Every action emits a
-`{circle, round, action, txHash, pillarServed}` line — the demo depends on action→txHash
+`{circle, round, action, txHash, pillarServed}` line, the demo depends on action→txHash
 links. The loop is idempotent: re-running re-checks chain state, so a retried payout is a
 no-op (CLAUDE.md §1.8, §8).
 
@@ -19,7 +19,7 @@ python -m venv .venv
 .venv/Scripts/python -m pip install -r requirements.txt   # (Scripts on Windows, bin on *nix)
 ```
 Config is read from the repo `.env` + `config/addresses.<chain>.json` + `config/abi/`
-(addresses are never inlined — CLAUDE.md §1.5).
+(addresses are never inlined, CLAUDE.md §1.5).
 
 ## Commands
 ```bash
@@ -34,7 +34,7 @@ python -m src.main run      [CIRCLE] [INTERVAL_SECONDS]   # scheduled loop
 ```bash
 .venv/Scripts/python -m pytest tests/ -q
 ```
-`tests/test_decide.py` covers the pure decision logic (no chain) — it must match the
+`tests/test_decide.py` covers the pure decision logic (no chain), it must match the
 contract's enforced rules: the agent never plans an action the contract would reject.
 
 ## Money safety
@@ -43,4 +43,4 @@ contract's enforced rules: the agent never plans an action the contract would re
 - **Gas in stablecoin** via CIP-64 `feeCurrency` is the target (CLAUDE.md §8); the agent
   holds no CELO in the steady state.
 - **Loud simulation** (`SIMULATE_*` flags): simulated subsystems log a `SIMULATED` banner
-  — never silently faked (CLAUDE.md §1.9).
+ , never silently faked (CLAUDE.md §1.9).

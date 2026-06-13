@@ -1,4 +1,4 @@
-# ARCHITECTURE.md — AjoAI System Architecture
+# ARCHITECTURE.md, AjoAI System Architecture
 
 > How the pieces fit. Domain rules live in `CLAUDE.md` §4 + `STATE_MACHINE.md`;
 > this is the component + data-flow + trust view.
@@ -43,24 +43,24 @@
                           └──────────────────┘
 ```
 
-**Contracts (`/contracts`)** — source of truth for all money state and rules.
+**Contracts (`/contracts`)**, source of truth for all money state and rules.
 `CircleFactory` deploys `Circle`s; `Circle` holds funds, enforces the state
 machine, writes ERC-8004 reputation, and routes idle funds to the yield adapter.
 
-**Agent runtime (`/agent`)** — autonomous loop + scheduler. It *reads* chain
+**Agent runtime (`/agent`)**, autonomous loop + scheduler. It *reads* chain
 state, *decides* which legal transition is due, and *triggers* it (payout, park/
 withdraw idle funds, mark delinquent). Pays its own gas in a stablecoin (CIP-64).
 Hosts x402-gated premium skills. Runs the LLM only for NL understanding/replies.
 
-**MiniPay Mini App (`/miniapp`)** — the human surface. Phone onboarding, join+
+**MiniPay Mini App (`/miniapp`)**, the human surface. Phone onboarding, join+
 deposit, contribute, track, receive. Submits member txs directly via viem/wagmi.
 
-**External Celo infra** — Mento (local stables), Self (personhood + agent ID),
+**External Celo infra**, Mento (local stables), Self (personhood + agent ID),
 ERC-8004 (portable reputation), a yield venue, MiniPay (distribution).
 
 ---
 
-## 2. DATA FLOW — one round (happy path)
+## 2. DATA FLOW, one round (happy path)
 1. Window opens (contract time-based; agent observes event).
 2. Members `contribute()` via the Mini App (on-time -> +rep).
 3. Agent `parkIdleFunds()` if there's a gap before settle; `withdrawIdleFunds()`
@@ -69,7 +69,7 @@ ERC-8004 (portable reputation), a yield venue, MiniPay (distribution).
    receives intendedPot; `received` set; reputation written.
 5. Round advances; agent logs each step with its tx hash + served pillar.
 
-## 3. DATA FLOW — default path
+## 3. DATA FLOW, default path
 1. A member misses the window + grace.
 2. Agent `markDelinquent(m)` -> deposit consumed to cover, strong −rep.
 3. Payout condition still met from deposit cover -> recipient made whole.
@@ -94,13 +94,13 @@ worst trigger *due* transitions early/late, not steal funds.
 ---
 
 ## 5. KEY DESIGN CHOICES
-- **Per-circle contract** (factory pattern) keeps each circle's funds isolated —
+- **Per-circle contract** (factory pattern) keeps each circle's funds isolated -
   a bug or default in one circle can't touch another.
 - **Pull-over-push** on payouts where a recipient could revert, so one bad
   recipient can't brick settlement.
 - **Yield behind an interface** so it can be a real venue or a loud stub without
   touching circle logic.
-- **Reputation as a first-class output**, not a side effect — completed circles
+- **Reputation as a first-class output**, not a side effect, completed circles
   produce a portable savings-credit score (the future micro-credit primitive).
 - **Time-based rounds in the contract**, observed (not controlled) by the agent,
   so the schedule is trust-minimized even if the agent is offline.
