@@ -7,6 +7,7 @@ import { useAccount, usePublicClient, useReadContract, useWaitForTransactionRece
 import { RingMark } from "@/components/RingMark";
 import { AppBar, Avatar, Lrow, Pill, ConnectButton } from "@/components/ui";
 import { InvitePanel } from "@/components/InvitePanel";
+import { FaucetButton, useTokenBalance } from "@/components/Faucet";
 import { useCeloWrite } from "@/lib/tx";
 import { circleAbi, erc20Abi, STATE_NAMES } from "@/lib/abi";
 import { useCircle, useToken, useMembers, useMyStatus } from "@/lib/circle";
@@ -124,10 +125,12 @@ function FormingView({ address, c, my, members, name, symbol, decimals, refetch 
     args: me && c.token ? [me, address] : undefined,
     query: { enabled: Boolean(me && c.token) },
   });
+  const { balance, refetch: refetchBal } = useTokenBalance(c.token);
   useEffect(() => { if (receipt) refetch(); }, [receipt, refetch]);
 
   const full = c.membersLength !== undefined && c.slots !== undefined && Number(c.membersLength) >= c.slots;
   const isOrganizer = Boolean(me && c.organizer && me.toLowerCase() === c.organizer.toLowerCase());
+  const lowBalance = c.deposit !== undefined && (balance === undefined || balance < c.deposit);
   const needsApproval = c.deposit !== undefined && (allowance === undefined || (allowance as bigint) < c.deposit);
   const busy = isPending || (!!txHash && !receipt);
 
@@ -167,6 +170,11 @@ function FormingView({ address, c, my, members, name, symbol, decimals, refetch 
           )
         ) : full ? (
           <div className="muted">This circle is full.</div>
+        ) : lowBalance ? (
+          <>
+            <p className="muted">You need {fmtAmount(c.deposit, symbol, decimals)} to post the deposit. Mint test tokens:</p>
+            <FaucetButton token={c.token} need={c.deposit} symbol={symbol} decimals={decimals} onMinted={refetchBal} />
+          </>
         ) : needsApproval ? (
           <button className="btn btn-block" disabled={busy} onClick={approve}>{busy ? "Approving…" : `1. Approve deposit (${fmtAmount(c.deposit, symbol, decimals)})`}</button>
         ) : (
@@ -197,6 +205,8 @@ function PayTab({ address, c, symbol, decimals, my }: { address: `0x${string}`; 
     args: me && c.token ? [me, address] : undefined,
     query: { enabled: Boolean(me && c.token) },
   });
+  const { balance, refetch: refetchBal } = useTokenBalance(c.token);
+  const lowBalance = c.contribution !== undefined && (balance === undefined || balance < c.contribution);
   const needsApproval = c.contribution !== undefined && (allowance === undefined || (allowance as bigint) < c.contribution);
 
   async function approve() {
@@ -249,7 +259,12 @@ function PayTab({ address, c, symbol, decimals, my }: { address: `0x${string}`; 
       <Lrow k="Goes to" v={`${short(c.recipient)}'s payout`} vColor="var(--clay-d)" />
       {error && <p className="banner">{error.message.slice(0, 120)}</p>}
       <div style={{ marginTop: 14, display: "grid", gap: 9 }}>
-        {!isConnected ? <ConnectButton /> : needsApproval ? (
+        {!isConnected ? <ConnectButton /> : lowBalance ? (
+          <>
+            <p className="muted">You need {fmtAmount(c.contribution, symbol, decimals)}. Mint test tokens:</p>
+            <FaucetButton token={c.token} need={c.contribution} symbol={symbol} decimals={decimals} onMinted={refetchBal} />
+          </>
+        ) : needsApproval ? (
           <button className="btn btn-block" disabled={busy} onClick={approve}>{busy ? "Approving…" : "1. Approve"}</button>
         ) : (
           <button className="btn btn-ochre btn-block" disabled={busy} onClick={pay}>{busy ? "Paying…" : `Pay ${fmtAmount(c.contribution, symbol, decimals)}`}</button>

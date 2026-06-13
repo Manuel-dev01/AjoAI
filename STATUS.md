@@ -7,17 +7,20 @@
 ---
 
 ## ⚠️ HIGHEST-RISK UNKNOWN (top of mind)
-**TIME.** Submissions close **June 15, 2026**; today is **2026-06-02** → **~13 days**.
-The build must be re-scoped to the demo critical path (VERIFICATION.md §E5). Every
-non-demo feature is post-deadline. Second risk: 2 of 3 tracks reward mainnet tx
-volume + 8004scan rank, so a real mainnet deploy + seeded circle is competitively
-decisive (not just an optional last step).
+**TIME.** Submissions close **June 15 (9AM GMT), 2026**; today is **2026-06-12** → **~3 days**.
+Core product is DONE (contracts+agent+frontend, all builds green, live on Sepolia). Remaining is
+SUBMISSION-CRITICAL + human-gated: (1) **register tweet** @CeloDevs/@Celo + ERC-8004 link;
+(2) **Self Agent ID** (your passport via Self app, or region screenshot) — agent/SELF_AGENT_ID.md;
+(3) **mainnet-early deploy** (fund AGENT_PRIVATE_KEY_MAINNET; bake agent into factory) → drives
+T1 activity weight + T2; (4) **deploy /miniapp to Vercel** for the live URL + re-register agentURI;
+(5) **submit via Celo Builders Skill** (`celo-onchain-agents`, opens June 8) — NOT Karma GAP.
 
 ---
 
 ## CURRENT PHASE
-Phase 4 (agent runtime) **CORE DONE + validated live**; Phase 2 deployed+verified.
-Phase 3 (Self/ERC-8004 wiring) partially deferred — see below.
+Phases 0–5 DONE. Frontend furnished (Market Blocks landing + 10-screen app, real-wired, lifecycle
+fixed, faucet). Agent hosting ready. **Phase 6 (submission) is the remaining work** — mostly the
+5 human/submission steps above.
 
 ## ⚠️ HIGHEST-RISK UNKNOWN (updated)
 Gas unblocked — dev key topped up to **11.7 CELO** (2026-06-02). Full 4-member
@@ -97,6 +100,25 @@ triggered all 4 payouts (economic agency) + finalize. Member scores all 9 (on-ch
 - 7 agent unit tests pass (pure decide() logic mirrors contract guards).
 - **Validated live:** `python -m src.main status` reads the real Sepolia circle correctly
   (Forming 0/4 → plans "wait"). Connectivity + ABI wiring confirmed end-to-end.
+
+## 📋 OFFICIAL RULES OBTAINED (2026-06-12) — corrections (VERIFICATION.md §B)
+- Tracks + $: **T1 Best Agent $2,500/$1,000/$500 · T2 Most Activity $500 · T3 8004scan rank $500** (T2/T3 combinable).
+- **Submission = Celo Builders Skill, NOT Karma GAP:** opens June 8 → `npx skills add https://celobuilders.xyz`
+  → "Help me submit… Celo Onchain Agents Hackathon" → `celo-onchain-agents`.
+- **Register:** quote-tweet @CeloDevs + @Celo with the **ERC-8004 link** (by June 15). Telegram for updates.
+- **Self Agent ID:** beneficial for T1; judge = Marek (co-founder Celo+Self). Region caveat → screenshot if Self unavailable.
+- Winners June 17. OpenClaw recommended (any framework OK). MiniPay "15M+".
+
+## 🐛 JOIN BUG FIXED + AGENT IDENTITY (8004scan + Self Agent ID)
+- Root cause: circles used real Mento NGNm (not faucetable on testnet) → `join` reverted on the
+  deposit transfer even after approve. Fix: deployed **mintable test tokens** on Sepolia
+  (tNGNm 0x435917C8…E6f7, tUSDm 0x3019C211…7527), app uses them via FAUCETABLE flag in lib/chain.ts,
+  + in-app **faucet** (components/Faucet.tsx) + **balance gate** in join/forming/pay so the flow
+  can't fail on insufficient balance. Mainnet will use real Mento. `npm run build` clean.
+- **8004scan:** enriched ERC-8004 agent card now hosted at miniapp `/.well-known/agent-card.json`
+  (serves 200; name/skills/registrations incl. agentId 307). register_agent.py defaults agentURI
+  to the deployed path — re-register with AJOAI_AGENT_URI=<deployed URL> so 8004scan renders it.
+- **Self Agent ID:** separate credential/auth layer (JS-first SDK) — scoped with user, not a named track.
 
 ## ☁️ AGENT HOSTING (autonomous, no laptop) — ready
 - agent/Dockerfile (context=repo root, ships agent/ + config/) + .dockerignore; **image builds

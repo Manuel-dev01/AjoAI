@@ -8,6 +8,7 @@ import { RingMark } from "@/components/RingMark";
 import { useCeloWrite } from "@/lib/tx";
 import { circleAbi, erc20Abi } from "@/lib/abi";
 import { useCircle, useToken } from "@/lib/circle";
+import { FaucetButton, useTokenBalance } from "@/components/Faucet";
 import { fmtAmount, short } from "@/lib/format";
 import { parseInviteInput } from "@/lib/code";
 import { getName, setName } from "@/lib/names";
@@ -76,6 +77,8 @@ function Preview({ circle, name, me, isConnected, onJoined }: { circle: `0x${str
     args: me && token ? [me, circle] : undefined,
     query: { enabled: Boolean(me && token) },
   });
+  const { balance, refetch: refetchBal } = useTokenBalance(token);
+  const lowBalance = deposit !== undefined && (balance === undefined || balance < deposit);
   const needsApproval = deposit !== undefined && (allowance === undefined || (allowance as bigint) < deposit);
   const joinIndex = membersLength !== undefined ? Number(membersLength) + 1 : undefined;
 
@@ -109,6 +112,11 @@ function Preview({ circle, name, me, isConnected, onJoined }: { circle: `0x${str
       <div style={{ marginTop: 16, display: "grid", gap: 9 }}>
         {!isConnected ? (
           <ConnectButton />
+        ) : lowBalance ? (
+          <>
+            <p className="muted">You need {fmtAmount(deposit, symbol, decimals)} to post the deposit. Mint test tokens:</p>
+            <FaucetButton token={token} need={deposit} symbol={symbol} decimals={decimals} onMinted={refetchBal} />
+          </>
         ) : needsApproval ? (
           <button className="btn btn-block" disabled={busy} onClick={approve}>
             {busy ? "Approving…" : `1. Approve deposit (${fmtAmount(deposit, symbol, decimals)})`}

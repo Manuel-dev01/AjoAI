@@ -46,10 +46,12 @@ IDENTITY_ABI = [
 
 
 def _agent_uri() -> str:
-    # Short hosted-URL pointer (the ERC-8004 norm) — cheap to store. The card itself lives at
-    # config/agent-card.json and will be served at this URL; re-point later if needed.
-    # Override with AJOAI_AGENT_URI (e.g. a data: URI) once a host is live.
-    return os.getenv("AJOAI_AGENT_URI", "https://ajoai.xyz/.well-known/agent-card.json")
+    # Short hosted-URL pointer (the ERC-8004 norm) — cheap to store. The card is served by the
+    # miniapp at /.well-known/agent-card.json (miniapp/public/.well-known/agent-card.json).
+    # IMPORTANT: set AJOAI_AGENT_URI to the DEPLOYED miniapp URL (e.g. your Vercel domain) before
+    # registering, so 8004scan can fetch + render the agent. Re-run this script to mint a fresh
+    # agentId pointing at the live URL (the registry mints a new ERC-721 per register() call).
+    return os.getenv("AJOAI_AGENT_URI", "https://ajoai.app/.well-known/agent-card.json")
 
 
 def main() -> None:

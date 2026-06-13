@@ -13,11 +13,22 @@ export const CONTRACTS = {
   demoCircle: "0xc578127F2978896ef1b4995CE44D780C89676cb4",
 } as const;
 
-// Mento stablecoins (rebrand: cUSD→USDm, cNGN→NGNm). MiniPay feeCurrency uses USDm only.
-export const TOKENS = {
-  USDm: "0xdE9e4C3ce781b4bA68120d6261cbad65ce0aB00b",
-  NGNm: "0x3d5ae86F34E2a82771496D140daFAEf3789dF888",
+// Tokens used to CREATE/JOIN circles in the app.
+// On TESTNET we use mintable mock stables (real Mento NGNm/USDm aren't faucetable on Sepolia,
+// so members couldn't post the deposit) — an in-app faucet mints these. On MAINNET, swap these
+// for the real Mento addresses (USDm 0x765DE8…, NGNm 0xE2702B…).
+const TEST_TOKENS = {
+  NGNm: "0x435917C839dFE442255B2E4D717DF7de1601E6f7", // AjoAI Test NGNm (mintable)
+  USDm: "0x3019C211F3B664e18A58213d20482D4E658A7527", // AjoAI Test USDm (mintable)
 } as const;
+const MAINNET_TOKENS = {
+  USDm: "0x765DE816845861e75A25fCA122bb6898B8B1282a",
+  NGNm: "0xE2702Bd97ee33c88c8f6f92DA3B733608aa76F71",
+} as const;
+export const TOKENS = activeChain.testnet ? TEST_TOKENS : MAINNET_TOKENS;
+
+// The app's tokens are mintable (faucet) on testnet only.
+export const FAUCETABLE = Boolean(activeChain.testnet);
 
 // CIP-64 gas-in-stablecoin: MiniPay only allows USDm as feeCurrency (docs §code-library).
 export const FEE_CURRENCY = TOKENS.USDm as `0x${string}`;

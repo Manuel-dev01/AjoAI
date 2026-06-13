@@ -62,7 +62,7 @@ Each member earned an on-chain savings-credit score of **9** (4 on-time contribu
 ## Built on Celo
 - **Mento** local stablecoins — **USDm** (Mento Dollar) and **NGNm** (Mento Naira);
   save in your own currency. (Mento rebranded cUSD→USDm, cNGN→NGNm.)
-- **MiniPay** — phone-number onboarding + distribution to 11M+ wallets.
+- **MiniPay** — phone-number onboarding + distribution to 15M+ wallets.
 - **CIP-64 fee abstraction** — pay gas in stablecoins, no CELO needed.
 - **Self** — ZK proof-of-personhood (live on Celo Sepolia); one human, one slot.
 - **ERC-8004** — portable agent identity + savings reputation (Identity + Reputation).
