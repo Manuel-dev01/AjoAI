@@ -81,7 +81,7 @@ export async function POST(req: Request) {
     const facts = factsFor(snapshot, member, decimals);
     const baseline = baselineAnswer(facts);
 
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const apiKey = process.env.LLM_API_KEY;
     if (!apiKey) return NextResponse.json({ answer: baseline });
 
     const context = `FACTS (authoritative, from chain):
@@ -95,27 +95,26 @@ export async function POST(req: Request) {
 `;
 
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      // DeepSeek (OpenAI-compatible chat completions). Explanation only; the deterministic
+      // baseline is passed as authoritative so the model can only rephrase, never invent facts.
+      const res = await fetch("https://api.deepseek.com/chat/completions", {
         method: "POST",
         headers: {
           "content-type": "application/json",
-          "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
+          authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
           model: NL_MODEL,
           max_tokens: 200,
-          system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
-          messages: [{ role: "user", content: `${context}\nMember asks: ${question}` }],
+          messages: [
+            { role: "system", content: SYSTEM_PROMPT },
+            { role: "user", content: `${context}\nMember asks: ${question}` },
+          ],
         }),
       });
       if (!res.ok) return NextResponse.json({ answer: baseline });
       const data = await res.json();
-      const text = ((data.content ?? []) as { type: string; text?: string }[])
-        .filter((b) => b.type === "text")
-        .map((b) => b.text ?? "")
-        .join("")
-        .trim();
+      const text = (data?.choices?.[0]?.message?.content ?? "").trim();
       return NextResponse.json({ answer: text || baseline });
     } catch {
       return NextResponse.json({ answer: baseline });

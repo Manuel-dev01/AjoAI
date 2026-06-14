@@ -2,7 +2,7 @@
   "_note": "Canonical ERC-8004 agent card. Served by the miniapp at /.well-known/agent-card.json (miniapp/public/.well-known/agent-card.json). The on-chain agentURI (registry tokenURI) should point at the DEPLOYED copy of this file so 8004scan can render the agent.",
   "type": "https://eips.ethereum.org/EIPS/eip-8004#agent-card",
   "name": "AjoAI",
-  "description": "Autonomous rotating-savings (ajo/esusu/chama/stokvel) agent on Celo. Onboards members by phone, custodies and rotates fixed periodic contributions in Mento stablecoins, parks idle funds, enforces defaults with on-chain penalties + ERC-8004 reputation, and issues a portable savings-credit score. Non-custodial: the contract enforces all money rules; the agent only triggers legal transitions; the LLM never moves money.",
+  "description": "Autonomous rotating-savings (ajo/esusu/chama/stokvel) agent on Celo. Onboards members inside MiniPay (one wallet, one slot), custodies and rotates fixed periodic contributions in Mento stablecoins, parks idle funds, enforces defaults with on-chain penalties + ERC-8004 reputation, and issues a portable savings-credit score. Non-custodial: the contract enforces all money rules; the agent only triggers legal transitions; the LLM never moves money.",
   "image": "/icon.png",
   "url": "https://ajo-ai-tan.vercel.app",
   "endpoints": ["https://ajo-ai-tan.vercel.app/app", "https://ajo-ai-tan.vercel.app", "https://ajo-ai-tan.vercel.app/.well-known/agent-card.json"],
