@@ -12,6 +12,11 @@ the agent reads chain state and never trusts a cached view for a money decision.
 links. The loop is idempotent: re-running re-checks chain state, so a retried payout is a
 no-op (CLAUDE.md §1.8, §8).
 
+`decide()` also manages idle pot funds around the yield adapter: it returns `park_idle`
+when there's a spare token balance and nothing more urgent to do, and prepends
+`withdraw_idle` ahead of `trigger_payout`/`finalize` whenever funds are parked (the
+contract requires `parkedAmount == 0` for both, `MustWithdrawIdleFirst`).
+
 ## Setup
 ```bash
 cd agent
@@ -40,6 +45,9 @@ contract's enforced rules: the agent never plans an action the contract would re
 ## Money safety
 - **LLM never moves money** (CLAUDE.md §1.3). The NL handler (Phase 4) only explains
   chain state; money actions come from `decide()`, which mirrors the contract guards.
+  `src/nl.py` is the source of truth for this logic; `miniapp/lib/nl.ts` is a TypeScript
+  port that powers the MiniPay app's **Ask** tab (`miniapp/app/app/api/ask/route.ts`),
+  kept in sync by hand and cross-referenced in both files.
 - **Gas in stablecoin** via CIP-64 `feeCurrency` is the target (CLAUDE.md §8); the agent
   holds no CELO in the steady state.
 - **Loud simulation** (`SIMULATE_*` flags): simulated subsystems log a `SIMULATED` banner

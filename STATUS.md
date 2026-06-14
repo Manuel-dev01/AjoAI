@@ -1,6 +1,6 @@
 # AjoAI Project Status
 
-Last updated: 2026-06-13.
+Last updated: 2026-06-14.
 
 AjoAI is an autonomous rotating-savings (ajo / esusu / chama / stokvel) agent on Celo,
 distributed as a MiniPay Mini App. The contract holds the money and enforces every rule; the
@@ -40,12 +40,15 @@ mintable test tokens, since real Mento stablecoins are not faucetable on testnet
   recipient-delinquent withhold and cure, default by an already-received member, rounding
   drift), and 3 invariants (value conservation, received == roundsPaid, delinquent recipient
   unpaid) at 256x8192 calls with 0 reverts.
-- Agent (Python, web3.py): perceive, reason, act, settle loop with rule-based decisions, an
+- Agent (Python, web3.py): perceive, reason, act, settle loop with rule-based decisions
+  (now including `park_idle`/`withdraw_idle` of idle pot funds around the yield adapter), an
   idempotent scheduler, structlog tx-hash-linked logs, ERC-8004 registration, a natural-language
-  handler (English, Nigerian Pidgin, Swahili), and a fund-safe mainnet seed runner. 13 tests pass.
+  handler (English, Nigerian Pidgin, Swahili), and a fund-safe mainnet seed runner. 18 tests pass.
 - Frontend (Next.js, viem/wagmi): Market Blocks landing page plus the MiniPay app (home, create,
-  join, state-aware circle dashboard, pay, activity, score). Injected auto-connect inside MiniPay,
-  stablecoin gas via CIP-64, reversible invite codes, QR sharing, and a testnet faucet gate.
+  join, state-aware circle dashboard, pay, activity, score, and an "Ask" tab for natural-language
+  member Q&A backed by `/app/api/ask`, a TS port of the agent's NL layer). Injected auto-connect
+  inside MiniPay, stablecoin gas via CIP-64, reversible invite codes, QR sharing, a portable
+  savings-credit score share link/QR (`/app/score/[address]`), and a testnet faucet gate.
 
 ## Key design decisions
 - Single Mento stablecoin per circle; period is a constructor parameter. Member count is bounded
@@ -56,8 +59,9 @@ mintable test tokens, since real Mento stablecoins are not faucetable on testnet
 - A delinquent recipient has their payout withheld (not skipped) until they cure. Reputation
   writes are wrapped so they can never block a money path.
 - The agent pays gas in native CELO (web3.py cannot sign Celo CIP-64); only the MiniPay frontend
-  pays gas in a stablecoin. Idle-fund yield is principal-only on-chain with the rate simulated
-  loudly at the agent layer.
+  pays gas in a stablecoin. Idle-fund yield is principal-only on-chain: the agent loop's
+  `decide()` parks idle pot balances with the yield adapter and recalls them (`withdraw_idle`)
+  before any payout/finalize, with the yield rate simulated loudly at the agent layer.
 
 ## Remaining for submission
 1. Self Agent ID: the registration session is bootstrapped programmatically; the human passport
