@@ -13,10 +13,12 @@ from .chain import ChainClient, CircleView
 from .config import Settings
 from .logs import action_log, get_logger, loud_sim
 
+ZERO_ADDRESS = "0x" + "0" * 40
+
 
 @dataclass
 class Decision:
-    action: str  # start | mark_delinquent | trigger_payout | finalize | wait
+    action: str  # start | mark_delinquent | trigger_payout | finalize | park_idle | withdraw_idle | wait
     member: str | None = None
     reason: str = ""
 
@@ -34,7 +36,11 @@ def decide(v: CircleView, now: int) -> list[Decision]:
 
     # ACTIVE
     if v.rounds_paid >= v.slots:
-        return [Decision("finalize", reason="all rounds paid")]
+        actions = []
+        if v.parked > 0:
+            actions.append(Decision("withdraw_idle", reason="recall idle funds before finalize"))
+        actions.append(Decision("finalize", reason="all rounds paid"))
+        return actions
 
     # Recipient delinquent -> WITHHELD; wait for them to cure (CLAUDE.md §4).
     if v.recipient_delinquent:
@@ -46,7 +52,11 @@ def decide(v: CircleView, now: int) -> list[Decision]:
 
     # (a) everyone paid -> pay now, even before the window closes.
     if all_in:
-        return [Decision("trigger_payout", reason="all contributions in")]
+        actions = []
+        if v.parked > 0:
+            actions.append(Decision("withdraw_idle", reason="recall idle funds before payout"))
+        actions.append(Decision("trigger_payout", reason="all contributions in"))
+        return actions
 
     # (b) grace elapsed -> cover misses from deposits, then pay.
     if now >= grace_close:
@@ -55,8 +65,14 @@ def decide(v: CircleView, now: int) -> list[Decision]:
             for m in v.members
             if not v.contributed_this_round.get(m, False)
         ]
+        if v.parked > 0:
+            actions.append(Decision("withdraw_idle", reason="recall idle funds before payout"))
         actions.append(Decision("trigger_payout", reason="grace elapsed; shortfall covered"))
         return actions
+
+    # (c) nothing due yet -> park spare funds in yield until they're needed.
+    if v.yield_adapter.lower() != ZERO_ADDRESS and v.parked == 0 and v.balance > 0:
+        return [Decision("park_idle", reason="idle funds available; parking for yield")]
 
     return [Decision("wait", reason="awaiting contributions / window")]
 
@@ -96,11 +112,24 @@ class Agent:
             elif d.action == "finalize":
                 r = self.chain.finalize(c)
                 pillar = "onchain_integration"
+            elif d.action == "park_idle":
+                r = self.chain.park_idle(c)
+                pillar = "onchain_integration"
+            elif d.action == "withdraw_idle":
+                r = self.chain.withdraw_idle(c)
+                pillar = "onchain_integration"
             else:
                 raise ValueError(f"unknown action {d.action}")
         except Exception as e:  # noqa: BLE001 — never crash the loop on one action
             self.log.error("action_failed", circle=c, action=d.action, error=str(e))
             return {"action": d.action, "ok": False, "error": str(e)}
+
+        if d.action == "withdraw_idle" and self.s.simulate_yield:
+            loud_sim(
+                self.log,
+                "yield",
+                "idle-fund yield RATE is simulated; on-chain park/withdraw moved real principal only",
+            )
 
         action_log(
             self.log,
@@ -114,12 +143,3 @@ class Agent:
             reason=d.reason,
         )
         return {"action": d.action, "ok": r.get("status") == 1, **r}
-
-    def maybe_demo_yield(self, circle_addr: str) -> None:
-        """Loud simulated idle-fund yield narrative (CLAUDE.md §1.9)."""
-        if self.s.simulate_yield:
-            loud_sim(
-                self.log,
-                "yield",
-                "idle-fund yield RATE is simulated; on-chain park/withdraw moves real principal only",
-            )

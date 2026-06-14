@@ -15,6 +15,17 @@ from web3.middleware import ExtraDataToPOAMiddleware
 
 from .config import Settings, load_abi
 
+# Minimal ERC20 ABI for the idle-balance check (no generic ERC20 ABI file in config/abi/).
+_ERC20_BALANCE_ABI = [
+    {
+        "type": "function",
+        "name": "balanceOf",
+        "stateMutability": "view",
+        "inputs": [{"name": "account", "type": "address"}],
+        "outputs": [{"type": "uint256"}],
+    }
+]
+
 
 @dataclass
 class CircleView:
@@ -34,6 +45,8 @@ class CircleView:
     recipient: str | None
     recipient_delinquent: bool
     contributed_this_round: dict  # member -> bool
+    yield_adapter: str  # address(0) if none configured
+    balance: int  # contract's current token balance (idle funds, excludes parked)
 
     STATE_NAMES = ["Forming", "Active", "Completed", "Defaulted", "Dissolved"]
 
@@ -100,6 +113,12 @@ class ChainClient:
             for m in members:
                 contributed[m] = c.functions.contributedInRound(cr, m).call()
 
+        yield_adapter = c.functions.yieldAdapter().call()
+        token = self.w3.eth.contract(
+            address=Web3.to_checksum_address(c.functions.token().call()), abi=_ERC20_BALANCE_ABI
+        )
+        balance = token.functions.balanceOf(Web3.to_checksum_address(addr)).call()
+
         return CircleView(
             address=Web3.to_checksum_address(addr),
             state=state,
@@ -117,6 +136,8 @@ class ChainClient:
             recipient=recipient,
             recipient_delinquent=recip_delq,
             contributed_this_round=contributed,
+            yield_adapter=yield_adapter,
+            balance=balance,
         )
 
     def now(self) -> int:

@@ -10,9 +10,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from src.chain import CircleView  # noqa: E402
-from src.loop import decide  # noqa: E402
+from src.loop import ZERO_ADDRESS, decide  # noqa: E402
 
 MEMBERS = ["0xA", "0xB", "0xC", "0xD"]
+YIELD_ADAPTER = "0x000000000000000000000000000000000000Ad42"
 
 
 def _view(**kw) -> CircleView:
@@ -33,6 +34,8 @@ def _view(**kw) -> CircleView:
         recipient="0xA",
         recipient_delinquent=False,
         contributed_this_round={m: False for m in MEMBERS},
+        yield_adapter=ZERO_ADDRESS,
+        balance=0,
     )
     base.update(kw)
     return CircleView(**base)
@@ -76,3 +79,33 @@ def test_delinquent_recipient_withholds():
 def test_all_rounds_paid_finalizes():
     v = _view(rounds_paid=4)
     assert decide(v, now=9999)[0].action == "finalize"
+
+
+def test_idle_funds_get_parked_when_adapter_set():
+    v = _view(yield_adapter=YIELD_ADAPTER, balance=1000)
+    assert decide(v, now=1100)[0].action == "park_idle"
+
+
+def test_no_park_without_adapter():
+    v = _view(yield_adapter=ZERO_ADDRESS, balance=1000)
+    assert decide(v, now=1100)[0].action == "wait"
+
+
+def test_parked_funds_withdrawn_before_payout():
+    v = _view(contributed_this_round={m: True for m in MEMBERS}, parked=500)
+    assert [d.action for d in decide(v, now=1100)] == ["withdraw_idle", "trigger_payout"]
+
+
+def test_parked_funds_withdrawn_before_finalize():
+    v = _view(rounds_paid=4, parked=500)
+    assert [d.action for d in decide(v, now=9999)] == ["withdraw_idle", "finalize"]
+
+
+def test_grace_elapsed_withdraws_before_payout():
+    v = _view(
+        contributed_this_round={"0xA": True, "0xB": True, "0xC": False, "0xD": False},
+        parked=500,
+    )
+    now = v.round_start + v.period + v.grace + 1
+    actions = [d.action for d in decide(v, now)]
+    assert actions == ["mark_delinquent", "mark_delinquent", "withdraw_idle", "trigger_payout"]
