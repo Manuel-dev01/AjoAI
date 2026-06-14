@@ -53,7 +53,9 @@ withdraw idle funds, mark delinquent). Pays its own gas in a stablecoin (CIP-64)
 Hosts x402-gated premium skills. Runs the LLM only for NL understanding/replies.
 
 **MiniPay Mini App (`/miniapp`)**, the human surface. Phone onboarding, join+
-deposit, contribute, track, receive. Submits member txs directly via viem/wagmi.
+deposit, contribute, track, receive, and an **Ask** tab for NL Q&A (`/app/api/ask`,
+a TypeScript port of the agent's NL handler — same deterministic, money-safe facts,
+reads chain directly, never moves funds). Submits member txs directly via viem/wagmi.
 
 **External Celo infra**, Mento (local stables), Self (personhood + agent ID),
 ERC-8004 (portable reputation), a yield venue, MiniPay (distribution).

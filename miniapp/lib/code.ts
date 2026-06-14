@@ -80,6 +80,11 @@ export function inviteLink(addr: string, name?: string): string {
   return `${origin()}/app/join?c=${addr}${n}`;
 }
 
+/** Shareable, read-only link to a member's portable savings-credit score — no wallet needed. */
+export function scoreLink(addr: string): string {
+  return `${origin()}/app/score/${addr}`;
+}
+
 /** Accept a raw address, an AJO-code, or a full invite link → {address?, name?}. */
 export function parseInviteInput(input: string): { address?: `0x${string}`; name?: string } {
   const s = input.trim();
