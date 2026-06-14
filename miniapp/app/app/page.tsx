@@ -125,9 +125,15 @@ function Welcome() {
   );
 }
 
+const CIRCLES_PER_PAGE = 5;
+
 function Dashboard({ address, name, onEdit }: { address: `0x${string}`; name: string; onEdit: () => void }) {
   const { mine, isLoading } = useMyCircles();
   const score = useScore(address);
+  const [page, setPage] = useState(0);
+  const totalPages = Math.max(1, Math.ceil(mine.length / CIRCLES_PER_PAGE));
+  const safePage = Math.min(page, totalPages - 1);
+  const paged = mine.slice(safePage * CIRCLES_PER_PAGE, (safePage + 1) * CIRCLES_PER_PAGE);
   return (
     <>
       <div className="appbar">
@@ -162,9 +168,17 @@ function Dashboard({ address, name, onEdit }: { address: `0x${string}`; name: st
           </div>
         )}
 
-        {mine.map((c, i) => (
+        {paged.map((c, i) => (
           <CircleCard key={c.addr} address={c.addr} alt={i % 2 === 1} isOrganizer={c.isOrganizer} isMember={c.isMember} />
         ))}
+
+        {totalPages > 1 && (
+          <div className="pagination">
+            <button className="btn-ghost" disabled={safePage === 0} onClick={() => setPage(safePage - 1)}>‹ Prev</button>
+            <span className="muted">Page {safePage + 1} of {totalPages}</span>
+            <button className="btn-ghost" disabled={safePage >= totalPages - 1} onClick={() => setPage(safePage + 1)}>Next ›</button>
+          </div>
+        )}
 
         <div style={{ marginTop: 16, display: "grid", gap: 9 }}>
           <Link href="/app/create" className="btn btn-block">+ Start a circle</Link>

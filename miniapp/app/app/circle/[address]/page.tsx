@@ -97,7 +97,11 @@ function CircleView({ address }: { address: `0x${string}` }) {
           <div className="empty">
             <RingMark variant="full" />
             <div style={{ fontWeight: 700, marginTop: 4 }}>Circle {STATE_NAMES[c.state ?? 0]}</div>
-            <div className="muted" style={{ marginTop: 4 }}>This circle has finished its rounds. Deposits returned; reputation written.</div>
+            <div className="muted" style={{ marginTop: 4 }}>
+              {c.state === 4
+                ? "This circle was deleted before it started. All deposits were refunded."
+                : "This circle has finished its rounds. Deposits returned; reputation written."}
+            </div>
           </div>
         )}
 
@@ -121,6 +125,7 @@ function FormingView({ address, c, my, members, name, symbol, decimals, refetch 
   const { address: me, isConnected } = useAccount();
   const { write, isPending, error } = useCeloWrite();
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>();
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const { data: receipt } = useWaitForTransactionReceipt({ hash: txHash });
   const { data: allowance, refetch: refetchAllow } = useReadContract({
     address: c.token, abi: erc20Abi, functionName: "allowance",
@@ -147,6 +152,10 @@ function FormingView({ address, c, my, members, name, symbol, decimals, refetch 
   }
   async function start() {
     const h = await write({ address, abi: circleAbi, functionName: "start", args: [] });
+    setTxHash(h);
+  }
+  async function deleteCircle() {
+    const h = await write({ address, abi: circleAbi, functionName: "dissolve", args: [] });
     setTxHash(h);
   }
 
@@ -197,6 +206,26 @@ function FormingView({ address, c, my, members, name, symbol, decimals, refetch 
           </div>
         ))}
       </div>
+
+      {isOrganizer && (
+        <div style={{ marginTop: 16 }}>
+          {confirmDelete ? (
+            <div className="banner" style={{ background: "var(--clay)", color: "#fff", borderColor: "var(--clay-d)" }}>
+              <p style={{ margin: "0 0 10px" }}>
+                This refunds every member&rsquo;s deposit and permanently dissolves the circle. This can&rsquo;t be undone.
+              </p>
+              <div style={{ display: "grid", gap: 9, gridTemplateColumns: "1fr 1fr" }}>
+                <button className="btn-ghost" disabled={busy} onClick={() => setConfirmDelete(false)}>Cancel</button>
+                <button className="btn btn-ink" disabled={busy} onClick={deleteCircle}>{busy ? "Deleting…" : "Yes, delete circle"}</button>
+              </div>
+            </div>
+          ) : (
+            <button className="btn-ghost btn-block" disabled={busy} onClick={() => setConfirmDelete(true)}>
+              Delete circle
+            </button>
+          )}
+        </div>
+      )}
     </>
   );
 }

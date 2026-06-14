@@ -160,16 +160,19 @@ export function useMyCircles() {
     contracts: all.flatMap((addr) => [
       { address: addr, abi: circleAbi, functionName: "isMember" as const, args: [me as Addr] as const },
       { address: addr, abi: circleAbi, functionName: "organizer" as const },
+      { address: addr, abi: circleAbi, functionName: "state" as const },
     ]),
   });
   const mine = all
     .map((addr, i) => {
-      const isMember = relCalls.data?.[i * 2]?.result === true;
-      const organizer = relCalls.data?.[i * 2 + 1]?.result as Addr | undefined;
+      const isMember = relCalls.data?.[i * 3]?.result === true;
+      const organizer = relCalls.data?.[i * 3 + 1]?.result as Addr | undefined;
+      const state = relCalls.data?.[i * 3 + 2]?.result as number | undefined;
       const isOrganizer = Boolean(me && organizer && organizer.toLowerCase() === me.toLowerCase());
-      return { addr, isMember, isOrganizer };
+      return { addr, isMember, isOrganizer, state };
     })
-    .filter((c) => c.isMember || c.isOrganizer);
+    // Dissolved circles were "deleted" by the organizer — drop them from the board.
+    .filter((c) => (c.isMember || c.isOrganizer) && c.state !== 4);
   return { me, all, mine, isLoading: listCalls.isLoading };
 }
 
