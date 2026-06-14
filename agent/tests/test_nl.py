@@ -32,6 +32,8 @@ def _view(current_round=0, rotation=None, recipient="0xA", recip_delq=False):
         recipient=recipient,
         recipient_delinquent=recip_delq,
         contributed_this_round={m: False for m in MEMBERS},
+        yield_adapter="0x0000000000000000000000000000000000000000",
+        balance=0,
     )
 
 

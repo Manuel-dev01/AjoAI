@@ -56,6 +56,8 @@ agent (`run-all 30`) sweeps the factory every 30 seconds, so it starts and rotat
 ## 7. Savings score (ERC-8004)
 - [ ] `/app/score` shows your on-chain savings-credit score and the breakdown (on-time, late, defaults, completed).
 - [ ] After a clean completed circle, the score increases.
+- [ ] Tap "Copy score link" (or scan the QR) on `/app/score`; opening that link in a fresh browser
+  with no wallet connected at `/app/score/<address>` shows the same score, read-only.
 
 ## 8. Home dashboard
 - [ ] `/app` lists circles you organize or are a member of, each with its name, role, and state pill.
@@ -71,6 +73,23 @@ agent (`run-all 30`) sweeps the factory every 30 seconds, so it starts and rotat
 - [ ] The hosted agent (Railway) logs `serve_all_sweep` every 30s against the mainnet factory.
 - [ ] The agent renders on 8004scan: https://8004scan.io/agents/celo/9339
 - [ ] The agent card serves at `<app-url>/.well-known/agent-card.json` with the mainnet agentId.
+
+## 11. Ask the agent (NL Q&A)
+- [ ] Open a circle dashboard → **Ask** tab.
+- [ ] As a member, ask "when do I get paid?" — the reply states your round/remaining rounds and
+  the pot amount in plain language (English, Pidgin, or Swahili, matching your question).
+- [ ] As a non-member (a different wallet), ask the same question — the reply says you are not a
+  member of this circle.
+- [ ] Answers are correct (deterministic, chain-derived facts) even without `ANTHROPIC_API_KEY` set
+  on the server; with it set, the same facts come back phrased more conversationally.
+
+## 12. Idle-fund yield (agent, on-chain)
+- [ ] On an Active circle with a configured yield adapter and an idle token balance, the agent's
+  `decide()` loop parks the balance (`parkIdleFunds`) when there is nothing more urgent to do.
+- [ ] Before the next `triggerPayout`/`finalize`, the agent recalls parked funds
+  (`withdrawIdleFunds`) first — these calls revert with `MustWithdrawIdleFirst` while
+  `parkedAmount != 0`.
+- [ ] The agent log shows a `SIMULATED` yield-rate banner alongside the real park/withdraw tx hashes.
 
 ## Known constraints
 - Mainnet has no faucet; joiners must hold the chosen token (USD₮ recommended, since the funded test

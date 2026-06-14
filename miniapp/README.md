@@ -11,8 +11,9 @@ contracts. Next.js (App Router) + viem/wagmi.
 | `/app` | Welcome (disconnected) → Home: your circles + savings score |
 | `/app/create` | Start a circle → `factory.createCircle(...)` |
 | `/app/join` | Join a circle (preview → approve deposit → `join`) |
-| `/app/circle/[address]` | Dashboard + **Pay** (contribute) + **Activity** (events) + your-turn / default-handled |
-| `/app/score` | Trust Score (ERC-8004 `scoreOf`) |
+| `/app/circle/[address]` | Dashboard + **Pay** (contribute) + **Activity** (events) + **Ask** (NL Q&A via `/app/api/ask`) + your-turn / default-handled |
+| `/app/score` | Trust Score (ERC-8004 `scoreOf`) + share/QR a portable score link |
+| `/app/score/[address]` | Public, read-only view of any member's savings-credit score — no wallet needed |
 
 Every app screen reads/writes the real contracts (factory `0x032fEE…2191`,
 circles, ReputationLedger `0x12Ac76Fd…B3Ce`). Addresses live in `lib/chain.ts`

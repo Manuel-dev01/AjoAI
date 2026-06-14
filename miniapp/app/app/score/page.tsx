@@ -1,13 +1,15 @@
 "use client";
 
+import { useState } from "react";
+import { QRCodeSVG } from "qrcode.react";
 import { useAccount } from "wagmi";
-import { AppBar, Lrow, ConnectButton } from "@/components/ui";
+import { AppBar, ConnectButton } from "@/components/ui";
 import { RingMark } from "@/components/RingMark";
-import { useScore } from "@/lib/circle";
+import { ScoreCard } from "@/components/ScoreCard";
+import { scoreLink } from "@/lib/code";
 
 export default function ScorePage() {
   const { address, isConnected } = useAccount();
-  const s = useScore(address);
 
   if (!isConnected) {
     return (
@@ -18,33 +20,44 @@ export default function ScorePage() {
     );
   }
 
-  const score = s ? Number(s.score) : 0;
-  const interactions = s ? Number(s.onTime + s.late + s.defaults) : 0;
-  const onTimeRate = s && interactions > 0 ? Math.round((Number(s.onTime) / interactions) * 100) : 0;
-  const bars = 9;
-  const filled = Math.max(0, Math.min(bars, Math.round((score / 10) * bars)));
-  const tier = score >= 7 ? "Strong" : score >= 3 ? "Building" : "New";
-
   return (
     <>
       <AppBar title="Your Trust Score" back="/app" />
       <div className="appmain">
-        <div className="score">
-          <div className="num">{s ? score : "—"}</div>
-          <div className="of">portable savings-credit · ERC-8004</div>
-          <div className="bars">
-            {Array.from({ length: bars }, (_, i) => (
-              <i key={i} className={i < filled ? "on" : ""} />
-            ))}
-          </div>
-          <div className="tg"><b style={{ color: "var(--cream)" }}>{tier}.</b> Built by finishing circles on time.</div>
-        </div>
-        <Lrow k="Circles finished" v={s ? s.completed.toString() : "…"} />
-        <Lrow k="On-time rate" v={`${onTimeRate}%`} vColor="var(--green)" />
-        <Lrow k="On-time contributions" v={s ? s.onTime.toString() : "…"} />
-        <Lrow k="Defaults" v={s ? s.defaults.toString() : "…"} />
+        <ScoreCard address={address!} />
         <div className="note">Carry this score to lenders, landlords &amp; bigger circles. It&rsquo;s an on-chain ERC-8004 reputation bound to your wallet, yours to keep.</div>
+        <ShareScorePanel address={address!} />
       </div>
     </>
+  );
+}
+
+function ShareScorePanel({ address }: { address: `0x${string}` }) {
+  const link = scoreLink(address);
+  const [copied, setCopied] = useState(false);
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* clipboard blocked — the value is still visible to copy manually */
+    }
+  };
+
+  return (
+    <div className="invite" style={{ background: "var(--cream)", color: "var(--ink)", marginTop: 12 }}>
+      <div style={{ fontFamily: "var(--display)", fontWeight: 800, fontSize: 18, letterSpacing: "-.02em" }}>
+        Share your score
+      </div>
+      <div className="muted" style={{ marginBottom: 12 }}>Anyone with this link can verify your score — no wallet needed.</div>
+      <div style={{ background: "#fff", border: "2.5px solid var(--ink)", padding: 12, display: "inline-block", marginBottom: 12 }}>
+        <QRCodeSVG value={link} size={148} bgColor="#ffffff" fgColor="#231b12" level="M" />
+      </div>
+      <button className="btn btn-block" onClick={copy}>
+        {copied ? "Link copied ✓" : "Copy score link"}
+      </button>
+    </div>
   );
 }
