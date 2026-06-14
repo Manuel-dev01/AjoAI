@@ -43,7 +43,9 @@ mintable test tokens, since real Mento stablecoins are not faucetable on testnet
 - Agent (Python, web3.py): perceive, reason, act, settle loop with rule-based decisions
   (now including `park_idle`/`withdraw_idle` of idle pot funds around the yield adapter), an
   idempotent scheduler, structlog tx-hash-linked logs, ERC-8004 registration, a natural-language
-  handler (English, Nigerian Pidgin, Swahili), and a fund-safe mainnet seed runner. 18 tests pass.
+  handler (English, Nigerian Pidgin, Swahili; LLM rephrasing via DeepSeek, falling back to a
+  deterministic chain-derived answer when no key is set), and a fund-safe mainnet seed runner.
+  18 tests pass.
 - Frontend (Next.js, viem/wagmi): Market Blocks landing page plus the MiniPay app (home, create,
   join, state-aware circle dashboard, pay, activity, score, and an "Ask" tab for natural-language
   member Q&A backed by `/app/api/ask`, a TS port of the agent's NL layer). Injected auto-connect
@@ -63,10 +65,16 @@ mintable test tokens, since real Mento stablecoins are not faucetable on testnet
   `decide()` parks idle pot balances with the yield adapter and recalls them (`withdraw_idle`)
   before any payout/finalize, with the yield rate simulated loudly at the agent layer.
 
+## Deployed surfaces
+- Frontend live in production at https://ajo-ai-tan.vercel.app (and `/app`), serving the mainnet
+  agent card (agentId 9339), the state-aware circle dashboard, the "Ask" tab (DeepSeek-backed,
+  EN/Pidgin/Swahili), and the portable score share page.
+- Hosted agent live as an always-on Railway worker (`run-all 30`, CHAIN=mainnet), sweeping the
+  mainnet factory every 30 seconds, including autonomous idle-fund `park_idle`/`withdraw_idle`.
+
 ## Remaining for submission
 1. Self Agent ID: the registration session is bootstrapped programmatically; the human passport
    scan is pending (blocked on Self ID verification, region screenshot is the documented fallback).
    `python -m scripts.self_poll` completes it once scanned.
-2. Redeploy `/miniapp` on Vercel so the hosted agent card serves the mainnet agentId 9339.
-3. Post the registration tweet quote-tweeting @CeloDevs and @Celo with the ERC-8004 link.
-4. Submit via the Celo Builders Skill (`celo-onchain-agents`).
+2. Post the registration tweet quote-tweeting @CeloDevs and @Celo with the ERC-8004 link.
+3. Submit via the Celo Builders Skill (`celo-onchain-agents`).
