@@ -6,6 +6,7 @@ export const circleAbi = [
   { type: "function", name: "contribute", stateMutability: "nonpayable", inputs: [], outputs: [] },
   { type: "function", name: "cure", stateMutability: "nonpayable", inputs: [], outputs: [] },
   { type: "function", name: "start", stateMutability: "nonpayable", inputs: [], outputs: [] },
+  { type: "function", name: "dissolve", stateMutability: "nonpayable", inputs: [], outputs: [] },
   // views
   { type: "function", name: "state", stateMutability: "view", inputs: [], outputs: [{ type: "uint8" }] },
   { type: "function", name: "currentRound", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
@@ -36,6 +37,7 @@ export const circleAbi = [
   { type: "event", name: "Delinquent", inputs: [{ name: "member", type: "address", indexed: true }, { name: "round", type: "uint256", indexed: true }, { name: "depositConsumed", type: "uint256", indexed: false }] },
   { type: "event", name: "PaidOut", inputs: [{ name: "recipient", type: "address", indexed: true }, { name: "round", type: "uint256", indexed: true }, { name: "pot", type: "uint256", indexed: false }] },
   { type: "event", name: "CircleStarted", inputs: [{ name: "startTime", type: "uint256", indexed: false }, { name: "slots", type: "uint256", indexed: false }] },
+  { type: "event", name: "CircleDissolved", inputs: [] },
 ] as const;
 
 export const factoryAbi = [
