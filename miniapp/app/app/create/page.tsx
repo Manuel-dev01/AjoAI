@@ -8,29 +8,28 @@ import { AppBar, ConnectButton } from "@/components/ui";
 import { useCeloWrite } from "@/lib/tx";
 import { factoryAbi } from "@/lib/abi";
 import { FACTORY } from "@/lib/circle";
-import { TOKENS } from "@/lib/chain";
+import { TOKEN_LIST } from "@/lib/chain";
 import { setName } from "@/lib/names";
 
 const FREQS = [
+  { label: "10 min", period: 600 }, // test: agent rotates within minutes
+  { label: "15 min", period: 900 }, // test
   { label: "Weekly", period: 604_800 },
   { label: "Monthly", period: 2_592_000 },
-  { label: "90 days", period: 7_776_000 },
 ];
-const SIZES = [6, 8, 10, 12];
-const TOKEN_OPTS = [
-  { sym: "NGNm", addr: TOKENS.NGNm },
-  { sym: "USDm", addr: TOKENS.USDm },
-];
+const SIZES = [2, 3, 4, 6, 8, 10];
+// Token options (with on-chain decimals) for the active chain — USDT is 6-decimal, not 18.
+const TOKEN_OPTS = TOKEN_LIST;
 
 export default function CreateCircle() {
   const router = useRouter();
   const { isConnected } = useAccount();
   const { write, isPending, error } = useCeloWrite();
   const [name, setNameInput] = useState("");
-  const [amount, setAmount] = useState("10000");
+  const [amount, setAmount] = useState("10");
   const [tok, setTok] = useState(0);
-  const [freq, setFreq] = useState(1);
-  const [size, setSize] = useState(1);
+  const [freq, setFreq] = useState(0); // default 10 min (fast testing)
+  const [size, setSize] = useState(0); // default 2 members (fast testing)
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>();
 
   const { data: receipt } = useWaitForTransactionReceipt({ hash: txHash });
@@ -47,7 +46,7 @@ export default function CreateCircle() {
 
   async function submit() {
     const period = FREQS[freq].period;
-    const contribution = parseUnits(amount || "0", 18);
+    const contribution = parseUnits(amount || "0", TOKEN_OPTS[tok].decimals);
     const h = await write({
       address: FACTORY,
       abi: factoryAbi,

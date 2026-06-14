@@ -12,6 +12,7 @@ import { FaucetButton, useTokenBalance } from "@/components/Faucet";
 import { fmtAmount, short } from "@/lib/format";
 import { parseInviteInput } from "@/lib/code";
 import { getName, setName } from "@/lib/names";
+import { FAUCETABLE } from "@/lib/chain";
 
 export default function JoinPage() {
   return (
@@ -113,10 +114,14 @@ function Preview({ circle, name, me, isConnected, onJoined }: { circle: `0x${str
         {!isConnected ? (
           <ConnectButton />
         ) : lowBalance ? (
-          <>
-            <p className="muted">You need {fmtAmount(deposit, symbol, decimals)} to post the deposit. Mint test tokens:</p>
-            <FaucetButton token={token} need={deposit} symbol={symbol} decimals={decimals} onMinted={refetchBal} />
-          </>
+          FAUCETABLE ? (
+            <>
+              <p className="muted">You need {fmtAmount(deposit, symbol, decimals)} to post the deposit. Mint test tokens:</p>
+              <FaucetButton token={token} need={deposit} symbol={symbol} decimals={decimals} onMinted={refetchBal} />
+            </>
+          ) : (
+            <p className="muted">You need {fmtAmount(deposit, symbol, decimals)} in your wallet to post the deposit.</p>
+          )
         ) : needsApproval ? (
           <button className="btn btn-block" disabled={busy} onClick={approve}>
             {busy ? "Approving…" : `1. Approve deposit (${fmtAmount(deposit, symbol, decimals)})`}

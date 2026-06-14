@@ -12,7 +12,7 @@ import { useCeloWrite } from "@/lib/tx";
 import { circleAbi, erc20Abi, STATE_NAMES } from "@/lib/abi";
 import { useCircle, useToken, useMembers, useMyStatus } from "@/lib/circle";
 import { fmtAmount, short } from "@/lib/format";
-import { explorerAddr } from "@/lib/chain";
+import { explorerAddr, FAUCETABLE, activeChain, EXPLORER_NAME } from "@/lib/chain";
 import { getName } from "@/lib/names";
 
 type Tab = "circle" | "pay" | "activity";
@@ -171,10 +171,14 @@ function FormingView({ address, c, my, members, name, symbol, decimals, refetch 
         ) : full ? (
           <div className="muted">This circle is full.</div>
         ) : lowBalance ? (
-          <>
-            <p className="muted">You need {fmtAmount(c.deposit, symbol, decimals)} to post the deposit. Mint test tokens:</p>
-            <FaucetButton token={c.token} need={c.deposit} symbol={symbol} decimals={decimals} onMinted={refetchBal} />
-          </>
+          FAUCETABLE ? (
+            <>
+              <p className="muted">You need {fmtAmount(c.deposit, symbol, decimals)} to post the deposit. Mint test tokens:</p>
+              <FaucetButton token={c.token} need={c.deposit} symbol={symbol} decimals={decimals} onMinted={refetchBal} />
+            </>
+          ) : (
+            <p className="muted">You need {fmtAmount(c.deposit, symbol, decimals)} in your wallet to post the deposit.</p>
+          )
         ) : needsApproval ? (
           <button className="btn btn-block" disabled={busy} onClick={approve}>{busy ? "Approving…" : `1. Approve deposit (${fmtAmount(c.deposit, symbol, decimals)})`}</button>
         ) : (
@@ -260,10 +264,14 @@ function PayTab({ address, c, symbol, decimals, my }: { address: `0x${string}`; 
       {error && <p className="banner">{error.message.slice(0, 120)}</p>}
       <div style={{ marginTop: 14, display: "grid", gap: 9 }}>
         {!isConnected ? <ConnectButton /> : lowBalance ? (
-          <>
-            <p className="muted">You need {fmtAmount(c.contribution, symbol, decimals)}. Mint test tokens:</p>
-            <FaucetButton token={c.token} need={c.contribution} symbol={symbol} decimals={decimals} onMinted={refetchBal} />
-          </>
+          FAUCETABLE ? (
+            <>
+              <p className="muted">You need {fmtAmount(c.contribution, symbol, decimals)}. Mint test tokens:</p>
+              <FaucetButton token={c.token} need={c.contribution} symbol={symbol} decimals={decimals} onMinted={refetchBal} />
+            </>
+          ) : (
+            <p className="muted">You need {fmtAmount(c.contribution, symbol, decimals)} in your wallet to pay this round.</p>
+          )
         ) : needsApproval ? (
           <button className="btn btn-block" disabled={busy} onClick={approve}>{busy ? "Approving…" : "1. Approve"}</button>
         ) : (
@@ -277,7 +285,9 @@ function PayTab({ address, c, symbol, decimals, my }: { address: `0x${string}`; 
 type Ev = { kind: "in" | "out" | "sys"; tx: string; sub: string; amt: string; round: number };
 
 function Activity({ address, symbol, decimals }: { address: `0x${string}`; symbol: string; decimals: number }) {
-  const client = usePublicClient();
+  // Pin to the active chain — usePublicClient() with no chainId can return the first configured
+  // chain (Sepolia) and query a mainnet circle there, finding nothing.
+  const client = usePublicClient({ chainId: activeChain.id });
   const [evs, setEvs] = useState<Ev[] | null>(null);
 
   useEffect(() => {
@@ -285,12 +295,28 @@ function Activity({ address, symbol, decimals }: { address: `0x${string}`; symbo
     (async () => {
       if (!client) return;
       try {
+        // Scan backwards in chunks (RPCs cap getLogs ranges) until we've covered the circle's
+        // contiguous activity, so events show regardless of how old the circle is.
         const latest = await client.getBlockNumber();
-        const from = latest > 9000n ? latest - 9000n : 0n;
-        const logs = await client.getLogs({ address, fromBlock: from, toBlock: "latest" });
+        const STEP = 10_000n;
+        const MAX_LOOKBACK = 400_000n;
+        const floor = latest > MAX_LOOKBACK ? latest - MAX_LOOKBACK : 0n;
+        const raw: { blockNumber: bigint; logIndex: number; data: `0x${string}`; topics: [signature: `0x${string}`, ...args: `0x${string}`[]] }[] = [];
+        let to = latest;
+        let found = false;
+        while (to >= floor) {
+          const from = to > STEP ? to - STEP + 1n : 0n;
+          let chunk: typeof raw = [];
+          try { chunk = (await client.getLogs({ address, fromBlock: from, toBlock: to })) as unknown as typeof raw; } catch { chunk = []; }
+          if (chunk.length) { raw.push(...chunk); found = true; }
+          else if (found) break; // collected the contiguous activity — stop scanning older blocks
+          if (from === 0n) break;
+          to = from - 1n;
+        }
+        raw.sort((a, b) => (a.blockNumber === b.blockNumber ? a.logIndex - b.logIndex : Number(a.blockNumber - b.blockNumber)));
         const parsed: Ev[] = [];
         const { decodeEventLog } = await import("viem");
-        for (const log of logs) {
+        for (const log of raw) {
           try {
             const d = decodeEventLog({ abi: circleAbi, data: log.data, topics: log.topics });
             const a = d.args as Record<string, unknown>;
@@ -318,7 +344,7 @@ function Activity({ address, symbol, decimals }: { address: `0x${string}`; symbo
           <span className={`amt ${e.kind === "in" ? "in" : e.kind === "out" ? "out" : ""}`}>{e.amt} {symbol}</span>
         </div>
       ))}
-      <a className="txlink" href={explorerAddr(address)} target="_blank" rel="noreferrer" style={{ display: "block", textAlign: "center", padding: "16px 0" }}>See all on Blockscout ↗</a>
+      <a className="txlink" href={explorerAddr(address)} target="_blank" rel="noreferrer" style={{ display: "block", textAlign: "center", padding: "16px 0" }}>See all on {EXPLORER_NAME} ↗</a>
     </>
   );
 }

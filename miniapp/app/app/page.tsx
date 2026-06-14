@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAccount, useConnect } from "wagmi";
 import { RingMark } from "@/components/RingMark";
@@ -9,7 +10,7 @@ import { useMyCircles, useCircle, useScore } from "@/lib/circle";
 import { CONTRACTS } from "@/lib/chain";
 import { short } from "@/lib/format";
 import { STATE_NAMES } from "@/lib/abi";
-import { getName } from "@/lib/names";
+import { getName, getUserName, setUserName } from "@/lib/names";
 
 export default function Home() {
   const { isConnected, address } = useAccount();
@@ -75,15 +76,48 @@ function Welcome() {
 function Dashboard({ address }: { address: `0x${string}` }) {
   const { mine, isLoading } = useMyCircles();
   const score = useScore(address);
+  const [name, setName] = useState<string | undefined>();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  useEffect(() => {
+    const n = getUserName(address);
+    setName(n);
+    setEditing(!n); // prompt for a name the first time this wallet connects
+  }, [address]);
+  const save = () => {
+    const v = draft.trim();
+    if (!v) return;
+    setUserName(address, v);
+    setName(v);
+    setEditing(false);
+  };
   return (
     <>
       <div className="appbar">
-        <span className="tt">Your circles</span>
+        <span className="tt">{name ? name : "Your circles"}</span>
         <span className="mini">AjoAI</span>
       </div>
       <div className="appmain">
-        <div className="greet">Sannu 👋</div>
-        <div className="muted" style={{ margin: "2px 2px 0" }}>{short(address)}</div>
+        <div className="greet">Sannu{name ? `, ${name}` : ""} 👋</div>
+        {editing ? (
+          <div className="fi" style={{ marginTop: 6, display: "flex", gap: 8, alignItems: "center" }}>
+            <input
+              className="fi"
+              style={{ border: "none", padding: 0, background: "transparent", flex: 1 }}
+              placeholder="What should we call you?"
+              value={draft}
+              maxLength={24}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") save(); }}
+              autoFocus
+            />
+            <button className="btn" style={{ padding: "6px 12px" }} onClick={save}>Save</button>
+          </div>
+        ) : (
+          <div className="muted" style={{ margin: "2px 2px 0" }}>
+            {short(address)} · <span style={{ cursor: "pointer", textDecoration: "underline" }} onClick={() => { setDraft(name ?? ""); setEditing(true); }}>edit name</span>
+          </div>
+        )}
 
         <div className="savings">
           <div>
