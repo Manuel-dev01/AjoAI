@@ -211,6 +211,9 @@ button{font-family:inherit;}
 .ccard .meta{font-size:11.5px;opacity:.7;font-weight:600;display:flex;justify-content:space-between;gap:8px;}
 .ccard .bar{height:7px;background:var(--cream-d);border:1.5px solid var(--ink);margin:8px 0 0;display:flex;}
 .ccard .bar i{background:var(--green);border-right:1.5px solid var(--ink);}
+.pagination{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:2px 0 14px;}
+.pagination .btn-ghost{padding:8px 14px;font-size:12px;}
+.pagination .btn-ghost:disabled{opacity:.4;cursor:not-allowed;}
 
 /* JOIN preview */
 .invite{background:var(--green);color:var(--cream);border:2.5px solid var(--ink);padding:18px;text-align:center;margin-bottom:12px;}
