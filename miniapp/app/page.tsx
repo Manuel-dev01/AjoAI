@@ -43,10 +43,10 @@ export default function Landing() {
           </div>
         </div>
         <div className="hero-strip"><div className="wrap">
-          <div className="hs"><div className="n">0%</div><div className="l">skimmed from your pot — ever</div></div>
+          <div className="hs"><div className="n">0%</div><div className="l">skimmed from your pot, ever</div></div>
           <div className="hs"><div className="n">8</div><div className="l">neighbours, one circle, one agent</div></div>
           <div className="hs"><div className="n">100%</div><div className="l">on-time payouts, on-chain</div></div>
-          <div className="hs"><div className="n">2</div><div className="l">local stablecoins — NGNm &amp; USDm</div></div>
+          <div className="hs"><div className="n">2</div><div className="l">local stablecoins: NGNm &amp; USDm</div></div>
         </div></div>
       </header>
 
@@ -54,10 +54,10 @@ export default function Landing() {
       <section className="block how" id="how"><div className="wrap">
         <span className="kick">How the circle turns</span>
         <h2 className="h2">Three moves.<br />Zero treasurer.</h2>
-        <p className="lede">The job an honest circle organiser does — collecting, paying, remembering — handed to an agent that does it perfectly, every round.</p>
+        <p className="lede">The job an honest circle organiser does, collecting, paying, remembering, handed to an agent that does it perfectly, every round.</p>
         <div className="steps">
           <div className="step"><div className="si">01</div><h3>Gather your people</h3><p>Join by phone number. Agree the amount and the order. No bank account, no paperwork, no app store.</p></div>
-          <div className="step"><div className="si">02</div><h3>The agent collects</h3><p>Every round it pulls each contribution in your own stablecoin — NGNm or USDm — automatically if you allow it.</p></div>
+          <div className="step"><div className="si">02</div><h3>The agent collects</h3><p>Every round it pulls each contribution in your own stablecoin, NGNm or USDm, automatically if you allow it.</p></div>
           <div className="step"><div className="si">03</div><h3>Someone gets paid</h3><p>The full pot goes to whoever&rsquo;s turn it is, the same day, with nothing taken out. Then the seat moves on.</p></div>
         </div>
       </div></section>
@@ -79,8 +79,8 @@ export default function Landing() {
           <span className="kick">The shape of trust</span>
           <h2 className="h2">Everybody&rsquo;s in.<br /><span className="u">Everybody&rsquo;s seen.</span></h2>
           <ul className="feat">
-            <li><span className="fn">01</span><span><b>Open ledger.</b> Every contribution and payout is visible to the whole circle, live — no secret books.</span></li>
-            <li><span className="fn">02</span><span><b>Defaults, handled.</b> A late round is covered from deposits and settled later — nobody chases anybody.</span></li>
+            <li><span className="fn">01</span><span><b>Open ledger.</b> Every contribution and payout is visible to the whole circle, live. No secret books.</span></li>
+            <li><span className="fn">02</span><span><b>Defaults, handled.</b> A late round is covered from deposits and settled later. Nobody chases anybody.</span></li>
             <li><span className="fn">03</span><span><b>Idle money rests safe.</b> Funds between rounds are parked, never gambled, always there for the next payout.</span></li>
             <li><span className="fn">04</span><span><b>Your turn is sacred.</b> The order is locked when the circle starts. The agent will not move it for anyone.</span></li>
           </ul>
@@ -91,7 +91,7 @@ export default function Landing() {
       <section className="block voices" id="voices"><div className="wrap">
         <span className="kick">Voices from the circle</span>
         <p className="bigquote">&ldquo;If you want to go fast, go alone. If you want to go far, <span className="u">go together.</span>&rdquo;</p>
-        <p className="bigquote-by">— the proverb AjoAI is built on</p>
+        <p className="bigquote-by">the proverb AjoAI is built on</p>
         <div className="vcards">
           <div className="vcard">
             <p className="q">&ldquo;Our market ajo used to live in a notebook one woman carried everywhere. Now nobody argues about who paid. It&rsquo;s just there, for everyone to see.&rdquo;</p>
@@ -102,7 +102,7 @@ export default function Landing() {
             <div className="who"><span className="av" style={{ background: "var(--clay)" }}>K</span><div><div className="nm">Kwame B.</div><div className="role">Boda rider · Nairobi</div></div></div>
           </div>
           <div className="vcard">
-            <p className="q">&ldquo;We back savings groups in three countries. AjoAI gives us something we never had — a clean, honest record of who actually saves.&rdquo;</p>
+            <p className="q">&ldquo;We back savings groups in three countries. AjoAI gives us something we never had: a clean, honest record of who actually saves.&rdquo;</p>
             <div className="who"><span className="av" style={{ background: "var(--ochre-d)" }}>N</span><div><div className="nm">Nadia R.</div><div className="role">Partner · financial-inclusion NGO</div></div></div>
           </div>
         </div>
@@ -112,7 +112,7 @@ export default function Landing() {
       <section className="block app-b" id="app"><div className="wrap">
         <span className="kick">In your hand · inside MiniPay</span>
         <h2 className="h2">Big buttons.<br />Plain words.<br />Real money.</h2>
-        <p className="lede">No seed phrases, no gas in CELO, no jargon — just your circle, in the currency and language you already use.</p>
+        <p className="lede">No seed phrases, no gas in CELO, no jargon. Just your circle, in the currency and language you already use.</p>
         <div className="phones">
           {/* dashboard */}
           <div className="phone"><div className="pscreen">
@@ -158,12 +158,12 @@ export default function Landing() {
         <span className="kick">Common questions</span>
         <h2 className="h2">The honest answers.</h2>
         <div className="faq-grid">
-          <div className="faq-item"><h4><span className="qn">Q1</span>Do I need a bank account or crypto?</h4><p>No. You join with your phone number inside MiniPay and save in a local stablecoin — NGNm or USDm. No bank, no seed phrase, and gas is paid in stablecoin.</p></div>
+          <div className="faq-item"><h4><span className="qn">Q1</span>Do I need a bank account or crypto?</h4><p>No. You join with your phone number inside MiniPay and save in a local stablecoin, NGNm or USDm. No bank, no seed phrase, and gas is paid in stablecoin.</p></div>
           <div className="faq-item"><h4><span className="qn">Q2</span>What if someone doesn&rsquo;t pay their round?</h4><p>Each member posts a one-round security deposit. If someone misses, that deposit covers the round so the payout still ships in full, on time. Nobody has to chase anybody.</p></div>
-          <div className="faq-item"><h4><span className="qn">Q3</span>Who decides the payout order?</h4><p>The circle does, when it starts. Once locked, the order can&rsquo;t be changed by anyone — including us. Your turn is guaranteed.</p></div>
+          <div className="faq-item"><h4><span className="qn">Q3</span>Who decides the payout order?</h4><p>The circle does, when it starts. Once locked, the order can&rsquo;t be changed by anyone, including us. Your turn is guaranteed.</p></div>
           <div className="faq-item"><h4><span className="qn">Q4</span>What is a Trust Score, and is it mine?</h4><p>It&rsquo;s a portable savings-credit score (ERC-8004) you build by finishing circles on time. It travels with you to lenders, landlords and bigger circles.</p></div>
-          <div className="faq-item"><h4><span className="qn">Q5</span>Where does my money sit between rounds?</h4><p>Idle contributions are parked in safe reserves — never lent out or gambled. They&rsquo;re always there for the next payout.</p></div>
-          <div className="faq-item"><h4><span className="qn">Q6</span>What does AjoAI cost?</h4><p>Nothing is skimmed from your pot. You get out exactly what the circle puts in — the full amount, every turn.</p></div>
+          <div className="faq-item"><h4><span className="qn">Q5</span>Where does my money sit between rounds?</h4><p>Idle contributions are parked in safe reserves, never lent out or gambled. They&rsquo;re always there for the next payout.</p></div>
+          <div className="faq-item"><h4><span className="qn">Q6</span>What does AjoAI cost?</h4><p>Nothing is skimmed from your pot. You get out exactly what the circle puts in, the full amount, every turn.</p></div>
         </div>
       </div></section>
 
@@ -180,7 +180,7 @@ export default function Landing() {
         <div className="sf-top">
           <div>
             <div className="sf-brand"><RingMark variant="static" />Ajo<span className="ai">AI</span></div>
-            <p className="sf-blurb">The savings circle your community already trusts — run by an agent that never forgets a contribution or skips a turn.</p>
+            <p className="sf-blurb">The savings circle your community already trusts, run by an agent that never forgets a contribution or skips a turn.</p>
             <div style={{ marginTop: 22 }}><Link href="/app" className="btn btn-ochre">Open in MiniPay →</Link></div>
           </div>
           <div className="sf-col"><h5>Product</h5><a href="#how">How it works</a><a href="#circle">The circle</a><a href="#app">In MiniPay</a><Link href="/app">App screens</Link></div>
@@ -189,7 +189,7 @@ export default function Landing() {
         </div>
         <div className="sf-bottom">
           <span>© 2026 AjoAI · Built for MiniPay on Celo</span>
-          <span>Ajo · Esusu · Chama · Stokvel — one idea, every name</span>
+          <span>Ajo · Esusu · Chama · Stokvel: one idea, every name</span>
         </div>
       </div></footer>
     </>

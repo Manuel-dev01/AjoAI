@@ -1,9 +1,11 @@
 "use client";
 
 import { useMemo } from "react";
-import { useAccount, useReadContract, useReadContracts } from "wagmi";
+import { useAccount, usePublicClient, useReadContract, useReadContracts } from "wagmi";
+import { useQuery } from "@tanstack/react-query";
+import { decodeEventLog } from "viem";
 import { circleAbi, erc20Abi, factoryAbi, reputationAbi } from "./abi";
-import { CONTRACTS } from "./chain";
+import { CONTRACTS, activeChain } from "./chain";
 
 const factory = CONTRACTS.circleFactory as `0x${string}`;
 const reputation = CONTRACTS.reputationLedger as `0x${string}`;
@@ -184,6 +186,65 @@ export function useScore(who?: Addr) {
   return t
     ? { score: t[0], onTime: t[1], late: t[2], defaults: t[3], completed: t[4] }
     : undefined;
+}
+
+export type ActivityEvent = {
+  kind: "in" | "out" | "sys";
+  eventName: string;
+  member: string;
+  round: number;
+  amount: bigint;
+  late?: boolean;
+};
+
+/**
+ * Decoded circle events (contributions, payouts, defaults, penalties), newest first.
+ * Runs as a cached react-query so it can be PREFETCHED at page mount (not on tab open):
+ * the chunked backward scan respects RPC range caps and early-stops once the circle's
+ * contiguous activity is collected. Keyed on roundsPaid so it refreshes as the agent advances.
+ */
+export function useCircleActivity(address?: Addr, roundsPaid?: bigint) {
+  const client = usePublicClient({ chainId: activeChain.id });
+  const q = useQuery({
+    queryKey: ["activity", activeChain.id, address, roundsPaid?.toString() ?? "0"],
+    enabled: Boolean(address && client),
+    staleTime: 30_000,
+    queryFn: async (): Promise<ActivityEvent[]> => {
+      if (!client || !address) return [];
+      const latest = await client.getBlockNumber();
+      const STEP = 10_000n;
+      const MAX_LOOKBACK = 200_000n;
+      const floor = latest > MAX_LOOKBACK ? latest - MAX_LOOKBACK : 0n;
+      type RawLog = { blockNumber: bigint; logIndex: number; data: `0x${string}`; topics: [signature: `0x${string}`, ...args: `0x${string}`[]] };
+      const raw: RawLog[] = [];
+      let to = latest;
+      let found = false;
+      while (to >= floor) {
+        const from = to > STEP ? to - STEP + 1n : 0n;
+        let chunk: RawLog[] = [];
+        try { chunk = (await client.getLogs({ address, fromBlock: from, toBlock: to })) as unknown as RawLog[]; } catch { chunk = []; }
+        if (chunk.length) { raw.push(...chunk); found = true; }
+        else if (found) break; // collected the contiguous activity — stop scanning older blocks
+        if (from === 0n) break;
+        to = from - 1n;
+      }
+      raw.sort((a, b) => (a.blockNumber === b.blockNumber ? a.logIndex - b.logIndex : Number(a.blockNumber - b.blockNumber)));
+      const out: ActivityEvent[] = [];
+      for (const log of raw) {
+        try {
+          const d = decodeEventLog({ abi: circleAbi, data: log.data, topics: log.topics });
+          const a = d.args as Record<string, unknown>;
+          const round = a.round !== undefined ? Number(a.round) : 0;
+          if (d.eventName === "Contributed") out.push({ kind: "in", eventName: d.eventName, member: a.member as string, round, amount: a.amount as bigint, late: a.late as boolean });
+          else if (d.eventName === "PaidOut") out.push({ kind: "out", eventName: d.eventName, member: a.recipient as string, round, amount: a.pot as bigint });
+          else if (d.eventName === "Delinquent") out.push({ kind: "sys", eventName: d.eventName, member: a.member as string, round, amount: a.depositConsumed as bigint });
+          else if (d.eventName === "LatePaid") out.push({ kind: "sys", eventName: d.eventName, member: a.member as string, round, amount: a.penalty as bigint });
+        } catch { /* non-matching log */ }
+      }
+      return out.reverse(); // newest first
+    },
+  });
+  return { events: q.data, isLoading: q.isLoading };
 }
 
 export { factory as FACTORY, reputation as REPUTATION };

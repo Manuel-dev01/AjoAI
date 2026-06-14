@@ -37,7 +37,7 @@ export function InvitePanel({
       <div style={{ fontFamily: "var(--display)", fontWeight: 800, fontSize: 18, letterSpacing: "-.02em" }}>
         Invite your circle
       </div>
-      <div className="muted" style={{ marginBottom: 12 }}>Share the link or the code — neighbours tap to join.</div>
+      <div className="muted" style={{ marginBottom: 12 }}>Share the link or the code. Neighbours tap to join.</div>
       <div style={{ background: "#fff", border: "2.5px solid var(--ink)", padding: 12, display: "inline-block", marginBottom: 12 }}>
         <QRCodeSVG value={link} size={148} bgColor="#ffffff" fgColor="#231b12" level="M" />
       </div>

@@ -43,7 +43,7 @@ export default function ScorePage() {
         <Lrow k="On-time rate" v={`${onTimeRate}%`} vColor="var(--green)" />
         <Lrow k="On-time contributions" v={s ? s.onTime.toString() : "…"} />
         <Lrow k="Defaults" v={s ? s.defaults.toString() : "…"} />
-        <div className="note">Carry this score to lenders, landlords &amp; bigger circles — it&rsquo;s an on-chain ERC-8004 reputation bound to your wallet, yours to keep.</div>
+        <div className="note">Carry this score to lenders, landlords &amp; bigger circles. It&rsquo;s an on-chain ERC-8004 reputation bound to your wallet, yours to keep.</div>
       </div>
     </>
   );

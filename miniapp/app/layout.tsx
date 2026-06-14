@@ -15,7 +15,7 @@ const sans = Hanken_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "AjoAI — Save like your village always has",
+  title: "AjoAI | Save like your village always has",
   description:
     "A rotating savings circle (ajo/esusu/chama/stokvel) run by an autonomous agent, inside MiniPay on Celo.",
 };

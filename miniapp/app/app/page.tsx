@@ -14,8 +14,60 @@ import { getName, getUserName, setUserName } from "@/lib/names";
 
 export default function Home() {
   const { isConnected, address } = useAccount();
+  const [name, setName] = useState<string | undefined>(undefined);
+  const [loaded, setLoaded] = useState(false);
+  useEffect(() => {
+    setName(address ? getUserName(address) : undefined);
+    setLoaded(true);
+  }, [address]);
+
   if (!isConnected) return <Welcome />;
-  return <Dashboard address={address!} />;
+  if (!loaded) return null; // wait for the localStorage read to avoid a flash
+  if (!name) return <Onboarding address={address!} onDone={setName} />;
+  return <Dashboard address={address!} name={name} onEdit={() => setName(undefined)} />;
+}
+
+// On-brand onboarding shown once per wallet (and on "edit name"): collect a display name before
+// the dashboard, mirroring the Welcome screen's design language.
+function Onboarding({ address, onDone }: { address: `0x${string}`; onDone: (n: string) => void }) {
+  const [draft, setDraft] = useState(() => getUserName(address) ?? "");
+  const save = () => {
+    const v = draft.trim();
+    if (!v) return;
+    setUserName(address, v);
+    onDone(v);
+  };
+  return (
+    <div className="welcome">
+      <div />
+      <div>
+        <RingMark variant="full" className="ring" />
+        <h2>What should we<br /><span className="u">call you?</span></h2>
+        <p>Your circle sees this name instead of a wallet address. You can change it anytime.</p>
+      </div>
+      <div>
+        <div className="phone-field">
+          <span className="flag">🪪</span>
+          <div style={{ flex: 1 }}>
+            <div className="lab">Your name</div>
+            <input
+              className="num"
+              style={{ border: "none", background: "transparent", outline: "none", width: "100%", padding: 0 }}
+              placeholder="e.g. Amaka"
+              value={draft}
+              maxLength={24}
+              autoFocus
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") save(); }}
+            />
+          </div>
+        </div>
+        <button className="btn btn-ochre btn-block" disabled={!draft.trim()} onClick={save}>
+          Continue →
+        </button>
+      </div>
+    </div>
+  );
 }
 
 function Welcome() {
@@ -51,7 +103,7 @@ function Welcome() {
         </div>
         <ConnectButton />
         {inMiniPay && !error && (
-          <p style={{ marginTop: 10 }}>One moment — MiniPay is connecting your wallet.</p>
+          <p style={{ marginTop: 10 }}>One moment. MiniPay is connecting your wallet.</p>
         )}
         {inMiniPay && error && (
           <div style={{ marginTop: 10 }}>
@@ -73,51 +125,21 @@ function Welcome() {
   );
 }
 
-function Dashboard({ address }: { address: `0x${string}` }) {
+function Dashboard({ address, name, onEdit }: { address: `0x${string}`; name: string; onEdit: () => void }) {
   const { mine, isLoading } = useMyCircles();
   const score = useScore(address);
-  const [name, setName] = useState<string | undefined>();
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState("");
-  useEffect(() => {
-    const n = getUserName(address);
-    setName(n);
-    setEditing(!n); // prompt for a name the first time this wallet connects
-  }, [address]);
-  const save = () => {
-    const v = draft.trim();
-    if (!v) return;
-    setUserName(address, v);
-    setName(v);
-    setEditing(false);
-  };
   return (
     <>
       <div className="appbar">
-        <span className="tt">{name ? name : "Your circles"}</span>
+        <RingMark variant="static" size={22} />
+        <span className="tt">{name}</span>
         <span className="mini">AjoAI</span>
       </div>
       <div className="appmain">
-        <div className="greet">Sannu{name ? `, ${name}` : ""} 👋</div>
-        {editing ? (
-          <div className="fi" style={{ marginTop: 6, display: "flex", gap: 8, alignItems: "center" }}>
-            <input
-              className="fi"
-              style={{ border: "none", padding: 0, background: "transparent", flex: 1 }}
-              placeholder="What should we call you?"
-              value={draft}
-              maxLength={24}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") save(); }}
-              autoFocus
-            />
-            <button className="btn" style={{ padding: "6px 12px" }} onClick={save}>Save</button>
-          </div>
-        ) : (
-          <div className="muted" style={{ margin: "2px 2px 0" }}>
-            {short(address)} · <span style={{ cursor: "pointer", textDecoration: "underline" }} onClick={() => { setDraft(name ?? ""); setEditing(true); }}>edit name</span>
-          </div>
-        )}
+        <div className="greet">Sannu, {name} 👋</div>
+        <div className="muted" style={{ margin: "2px 2px 0" }}>
+          {short(address)} · <span style={{ cursor: "pointer", textDecoration: "underline" }} onClick={onEdit}>edit name</span>
+        </div>
 
         <div className="savings">
           <div>

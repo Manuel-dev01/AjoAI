@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useConnect } from "wagmi";
 import { avatarColor, initials } from "@/lib/format";
 import { useInMiniPay } from "@/app/providers";
+import { RingMark } from "@/components/RingMark";
 
 export function Avatar({ addr, size = 28 }: { addr?: string; size?: number }) {
   return (
@@ -37,6 +38,7 @@ export function AppBar({ title, mini, back }: { title: string; mini?: string; ba
           ‹
         </Link>
       )}
+      <RingMark variant="static" size={22} />
       <span className="tt">{title}</span>
       {mini && <span className="mini">{mini}</span>}
     </div>

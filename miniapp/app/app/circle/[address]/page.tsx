@@ -3,16 +3,16 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { isAddress } from "viem";
-import { useAccount, usePublicClient, useReadContract, useWaitForTransactionReceipt } from "wagmi";
+import { useAccount, useReadContract, useWaitForTransactionReceipt } from "wagmi";
 import { RingMark } from "@/components/RingMark";
 import { AppBar, Avatar, Lrow, Pill, ConnectButton } from "@/components/ui";
 import { InvitePanel } from "@/components/InvitePanel";
 import { FaucetButton, useTokenBalance } from "@/components/Faucet";
 import { useCeloWrite } from "@/lib/tx";
 import { circleAbi, erc20Abi, STATE_NAMES } from "@/lib/abi";
-import { useCircle, useToken, useMembers, useMyStatus } from "@/lib/circle";
+import { useCircle, useToken, useMembers, useMyStatus, useCircleActivity, type ActivityEvent } from "@/lib/circle";
 import { fmtAmount, short } from "@/lib/format";
-import { explorerAddr, FAUCETABLE, activeChain, EXPLORER_NAME } from "@/lib/chain";
+import { explorerAddr, FAUCETABLE, EXPLORER_NAME } from "@/lib/chain";
 import { getName } from "@/lib/names";
 
 type Tab = "circle" | "pay" | "activity";
@@ -31,6 +31,8 @@ function CircleView({ address }: { address: `0x${string}` }) {
   const { symbol, decimals } = useToken(c.token);
   const my = useMyStatus(address, c.round);
   const { members, refetch: refetchMembers } = useMembers(address, c.membersLength, c.round);
+  // Prefetch activity in the background at mount, so the Activity tab opens instantly.
+  const { events: activityEvents, isLoading: activityLoading } = useCircleActivity(address, c.roundsPaid);
   const name = getName(address) || `Circle ${short(address)}`;
   const forming = c.state === 0;
   const active = c.state === 1;
@@ -104,7 +106,7 @@ function CircleView({ address }: { address: `0x${string}` }) {
         )}
 
         {tab === "activity" && (
-          <Activity address={address} symbol={symbol} decimals={decimals} />
+          <Activity address={address} symbol={symbol} decimals={decimals} events={activityEvents} isLoading={activityLoading} />
         )}
       </div>
     </>
@@ -282,68 +284,30 @@ function PayTab({ address, c, symbol, decimals, my }: { address: `0x${string}`; 
   );
 }
 
-type Ev = { kind: "in" | "out" | "sys"; tx: string; sub: string; amt: string; round: number };
-
-function Activity({ address, symbol, decimals }: { address: `0x${string}`; symbol: string; decimals: number }) {
-  // Pin to the active chain — usePublicClient() with no chainId can return the first configured
-  // chain (Sepolia) and query a mainnet circle there, finding nothing.
-  const client = usePublicClient({ chainId: activeChain.id });
-  const [evs, setEvs] = useState<Ev[] | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      if (!client) return;
-      try {
-        // Scan backwards in chunks (RPCs cap getLogs ranges) until we've covered the circle's
-        // contiguous activity, so events show regardless of how old the circle is.
-        const latest = await client.getBlockNumber();
-        const STEP = 10_000n;
-        const MAX_LOOKBACK = 400_000n;
-        const floor = latest > MAX_LOOKBACK ? latest - MAX_LOOKBACK : 0n;
-        const raw: { blockNumber: bigint; logIndex: number; data: `0x${string}`; topics: [signature: `0x${string}`, ...args: `0x${string}`[]] }[] = [];
-        let to = latest;
-        let found = false;
-        while (to >= floor) {
-          const from = to > STEP ? to - STEP + 1n : 0n;
-          let chunk: typeof raw = [];
-          try { chunk = (await client.getLogs({ address, fromBlock: from, toBlock: to })) as unknown as typeof raw; } catch { chunk = []; }
-          if (chunk.length) { raw.push(...chunk); found = true; }
-          else if (found) break; // collected the contiguous activity — stop scanning older blocks
-          if (from === 0n) break;
-          to = from - 1n;
-        }
-        raw.sort((a, b) => (a.blockNumber === b.blockNumber ? a.logIndex - b.logIndex : Number(a.blockNumber - b.blockNumber)));
-        const parsed: Ev[] = [];
-        const { decodeEventLog } = await import("viem");
-        for (const log of raw) {
-          try {
-            const d = decodeEventLog({ abi: circleAbi, data: log.data, topics: log.topics });
-            const a = d.args as Record<string, unknown>;
-            const round = a.round !== undefined ? Number(a.round) : 0;
-            if (d.eventName === "Contributed") parsed.push({ kind: "in", tx: `Contribution · ${short(a.member as string)}`, sub: a.late ? "late" : "on-time", amt: `+${fmtAmount(a.amount as bigint, "", decimals)}`, round });
-            else if (d.eventName === "PaidOut") parsed.push({ kind: "out", tx: `Payout → ${short(a.recipient as string)}`, sub: "agent · same day", amt: `−${fmtAmount(a.pot as bigint, "", decimals)}`, round });
-            else if (d.eventName === "Delinquent") parsed.push({ kind: "sys", tx: `Deposit covered ${short(a.member as string)}`, sub: "auto", amt: fmtAmount(a.depositConsumed as bigint, "", decimals), round });
-            else if (d.eventName === "LatePaid") parsed.push({ kind: "sys", tx: `Penalty · ${short(a.member as string)}`, sub: "late fee", amt: fmtAmount(a.penalty as bigint, "", decimals), round });
-          } catch { /* non-matching log */ }
-        }
-        if (alive) setEvs(parsed.reverse());
-      } catch { if (alive) setEvs([]); }
-    })();
-    return () => { alive = false; };
-  }, [client, address, decimals]);
-
-  if (evs === null) return <div className="muted" style={{ padding: "20px 2px" }}>Loading activity…</div>;
+// Presentational: events are prefetched at page mount by useCircleActivity (see CircleView),
+// so opening this tab is instant. Formatting (token decimals) happens here.
+function Activity({ address, symbol, decimals, events, isLoading }: { address: `0x${string}`; symbol: string; decimals: number; events?: ActivityEvent[]; isLoading: boolean }) {
+  if (!events && isLoading) return <div className="muted" style={{ padding: "20px 2px" }}>Loading activity…</div>;
+  const evs = events ?? [];
+  const line = (e: ActivityEvent) => {
+    if (e.eventName === "Contributed") return { tx: `Contribution · ${short(e.member)}`, sub: e.late ? "late" : "on-time", amt: `+${fmtAmount(e.amount, "", decimals)}` };
+    if (e.eventName === "PaidOut") return { tx: `Payout → ${short(e.member)}`, sub: "agent · same day", amt: `−${fmtAmount(e.amount, "", decimals)}` };
+    if (e.eventName === "Delinquent") return { tx: `Deposit covered ${short(e.member)}`, sub: "auto", amt: fmtAmount(e.amount, "", decimals) };
+    return { tx: `Penalty · ${short(e.member)}`, sub: "late fee", amt: fmtAmount(e.amount, "", decimals) };
+  };
   return (
     <>
-      {evs.length === 0 && <div className="muted" style={{ padding: "10px 2px" }}>No recent on-chain activity in this window.</div>}
-      {evs.map((e, i) => (
-        <div className="act" key={i}>
-          <span className={`ic ${e.kind}`}>{e.kind === "in" ? "↓" : e.kind === "out" ? "↑" : "⛨"}</span>
-          <div className="tx">{e.tx}<span>Round {e.round} · {e.sub}</span></div>
-          <span className={`amt ${e.kind === "in" ? "in" : e.kind === "out" ? "out" : ""}`}>{e.amt} {symbol}</span>
-        </div>
-      ))}
+      {evs.length === 0 && <div className="muted" style={{ padding: "10px 2px" }}>No on-chain activity yet.</div>}
+      {evs.map((e, i) => {
+        const l = line(e);
+        return (
+          <div className="act" key={i}>
+            <span className={`ic ${e.kind}`}>{e.kind === "in" ? "↓" : e.kind === "out" ? "↑" : "⛨"}</span>
+            <div className="tx">{l.tx}<span>Round {e.round} · {l.sub}</span></div>
+            <span className={`amt ${e.kind === "in" ? "in" : e.kind === "out" ? "out" : ""}`}>{l.amt} {symbol}</span>
+          </div>
+        );
+      })}
       <a className="txlink" href={explorerAddr(address)} target="_blank" rel="noreferrer" style={{ display: "block", textAlign: "center", padding: "16px 0" }}>See all on {EXPLORER_NAME} ↗</a>
     </>
   );

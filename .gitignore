@@ -6,6 +6,7 @@
 *.pem
 config/secrets.json
 agent/.mainnet_members.json
+agent/.mainnet_e2e.json
 agent/.self_session.json
 
 # ─── Generated deploy/run artifacts ───

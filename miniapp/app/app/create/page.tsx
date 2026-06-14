@@ -119,7 +119,7 @@ export default function CreateCircle() {
           <div className="fi" style={{ fontSize: 13 }}>Random &amp; locked<span className="cur">fair</span></div>
         </div>
 
-        <p className="muted">A one-round security deposit ({amount || 0} {TOKEN_OPTS[tok].sym}) is posted by each member on joining — it covers a missed round and is returned on clean completion.</p>
+        <p className="muted">A one-round security deposit ({amount || 0} {TOKEN_OPTS[tok].sym}) is posted by each member on joining. It covers a missed round and is returned on clean completion.</p>
         {error && <p className="banner">{error.message.slice(0, 120)}</p>}
       </div>
 
