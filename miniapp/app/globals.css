@@ -243,6 +243,17 @@ button{font-family:inherit;}
 .tabs .t:last-child{border-right:none;}
 .tabs .t.on{background:var(--green);color:var(--cream);}
 
+/* ASK (NL Q&A chat) */
+.chat{display:flex;flex-direction:column;gap:10px;}
+.chat .log{display:flex;flex-direction:column;gap:8px;margin-bottom:4px;}
+.chat .msg{max-width:85%;padding:10px 13px;font-size:13px;font-weight:500;border:2px solid var(--ink);line-height:1.4;}
+.chat .msg.me{align-self:flex-end;background:var(--green);color:var(--cream);}
+.chat .msg.bot{align-self:flex-start;background:var(--cream);color:var(--ink);}
+.chat .row{display:flex;gap:8px;}
+.chat .row input{flex:1;background:var(--cream);color:var(--ink);border:2.5px solid var(--ink);padding:12px 14px;font-family:var(--sans);font-size:14px;outline:none;}
+.chat .row input::placeholder{opacity:.5;}
+.chat .row .btn{padding:13px 18px;}
+
 /* CONTRIBUTE */
 .contrib{background:var(--ochre);border:2.5px solid var(--ink);padding:20px;text-align:center;margin-bottom:12px;}
 .contrib .a{font-family:var(--display);font-weight:800;font-size:40px;letter-spacing:-.03em;line-height:1;white-space:nowrap;}

@@ -7,6 +7,7 @@ import { useAccount, useReadContract, useWaitForTransactionReceipt } from "wagmi
 import { RingMark } from "@/components/RingMark";
 import { AppBar, Avatar, Lrow, Pill, ConnectButton } from "@/components/ui";
 import { InvitePanel } from "@/components/InvitePanel";
+import { AskAgent } from "@/components/AskAgent";
 import { FaucetButton, useTokenBalance } from "@/components/Faucet";
 import { useCeloWrite } from "@/lib/tx";
 import { circleAbi, erc20Abi, STATE_NAMES } from "@/lib/abi";
@@ -15,7 +16,7 @@ import { fmtAmount, short } from "@/lib/format";
 import { explorerAddr, FAUCETABLE, EXPLORER_NAME } from "@/lib/chain";
 import { getName } from "@/lib/names";
 
-type Tab = "circle" | "pay" | "activity";
+type Tab = "circle" | "pay" | "activity" | "ask";
 type CircleData = ReturnType<typeof useCircle>;
 type MyStatus = ReturnType<typeof useMyStatus>;
 
@@ -47,6 +48,7 @@ function CircleView({ address }: { address: `0x${string}` }) {
           <span className={`t${tab === "circle" ? " on" : ""}`} onClick={() => setTab("circle")}>Circle</span>
           <span className={`t${tab === "pay" ? " on" : ""}`} onClick={() => setTab("pay")}>Pay</span>
           <span className={`t${tab === "activity" ? " on" : ""}`} onClick={() => setTab("activity")}>Activity</span>
+          <span className={`t${tab === "ask" ? " on" : ""}`} onClick={() => setTab("ask")}>Ask</span>
         </div>
 
         {tab === "circle" && forming && (
@@ -112,6 +114,8 @@ function CircleView({ address }: { address: `0x${string}` }) {
         {tab === "activity" && (
           <Activity address={address} symbol={symbol} decimals={decimals} events={activityEvents} isLoading={activityLoading} />
         )}
+
+        {tab === "ask" && <AskAgent address={address} member={my.me} />}
       </div>
     </>
   );
