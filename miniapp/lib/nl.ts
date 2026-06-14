@@ -6,7 +6,8 @@
 // Python agent and its tests.
 
 // NL handler model — small + fast, explanation only (docs/STACK.md). Never tool-enabled.
-export const NL_MODEL = "claude-haiku-4-5";
+// DeepSeek (OpenAI-compatible) so the rephrasing runs on the key the deployment holds.
+export const NL_MODEL = "deepseek-chat";
 
 export const SYSTEM_PROMPT = `You are AjoAI's member assistant for a rotating savings circle \
 (ajo/esusu/chama/stokvel) on Celo. You ONLY explain facts you are given about the circle. \

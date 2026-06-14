@@ -5,8 +5,8 @@
 
 AjoAI turns Africa's most common informal savings institution, the rotating
 savings circle (**ajo / esusu** in Nigeria, **chama** in Kenya, **stokvel** in
-South Africa), into an autonomous on-chain agent inside MiniPay. Members join by
-phone, save in local Mento stablecoins, and the agent runs the whole circle:
+South Africa), into an autonomous on-chain agent inside MiniPay. Members join in
+MiniPay, save in local Mento stablecoins, and the agent runs the whole circle:
 collecting contributions, executing the payout rotation, parking idle funds,
 enforcing defaults, and turning a completed circle into a portable savings-credit
 score.
@@ -15,7 +15,7 @@ score.
 A rotating savings circle: a group each contributes a fixed amount every period,
 and each period one member receives the whole pot, until everyone has received
 exactly once. AjoAI makes each circle an autonomous agent that:
-1. Onboards members by phone number (with Self proof-of-personhood, one human, one slot).
+1. Onboards members inside MiniPay (wallet-based, one wallet = one slot; the join path carries a Self proof-of-personhood slot, live gating on the roadmap).
 2. Custodies + collects fixed contributions in a local stablecoin.
 3. Executes the payout rotation automatically, **no human in the loop**.
 4. Parks idle pot funds in yield between payouts.
@@ -89,9 +89,9 @@ The agent runs as an always-on Railway worker (`run-all 30`) sweeping the mainne
 ## Built on Celo
 - **Mento** local stablecoins, **USDm** (Mento Dollar) and **NGNm** (Mento Naira);
   save in your own currency. (Mento rebranded cUSD→USDm, cNGN→NGNm.)
-- **MiniPay**, phone-number onboarding + distribution to 15M+ wallets.
+- **MiniPay**, in-wallet onboarding + distribution to 15M+ wallets.
 - **CIP-64 fee abstraction**, pay gas in stablecoins, no CELO needed.
-- **Self**, ZK proof-of-personhood (live on Celo Sepolia); one human, one slot.
+- **Self**, ZK proof-of-personhood: the contract enforces one slot per human and the join path carries a Self-proof argument; the verifier runs open-mode today, live gating is on the roadmap.
 - **ERC-8004**, portable agent identity + savings reputation (Identity + Reputation).
 - **x402**, premium endpoints (guarantor score, analytics) for other agents (planned).
 
@@ -101,7 +101,7 @@ The agent runs as an always-on Railway worker (`run-all 30`) sweeping the mainne
 | **Economic agency** | Agent autonomously triggers payouts, idle-fund parking, penalty/default recovery, no human per cycle |
 | **On-chain integration** | Custom escrow/rotation contracts, ERC-8004 identity + reputation writes, fee-abstracted txs, every action → a tx hash |
 | **Real-world applicability** | Digitizes the most common informal savings institution in Africa |
-| **Creative use of Celo infra** | Mento local stables (USDm/NGNm), MiniPay phone onboarding, Self sybil resistance, CIP-64 gas-in-stablecoin |
+| **Creative use of Celo infra** | Mento local stables (USDm/NGNm), MiniPay in-wallet onboarding, Self-ready join path, CIP-64 gas-in-stablecoin |
 
 ## Repository
 | Path | What |

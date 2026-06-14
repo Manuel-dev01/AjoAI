@@ -56,7 +56,7 @@ export default function Landing() {
         <h2 className="h2">Three moves.<br />Zero treasurer.</h2>
         <p className="lede">The job an honest circle organiser does, collecting, paying, remembering, handed to an agent that does it perfectly, every round.</p>
         <div className="steps">
-          <div className="step"><div className="si">01</div><h3>Gather your people</h3><p>Join by phone number. Agree the amount and the order. No bank account, no paperwork, no app store.</p></div>
+          <div className="step"><div className="si">01</div><h3>Gather your people</h3><p>Join inside MiniPay. Agree the amount and the order. No bank account, no paperwork, no app store.</p></div>
           <div className="step"><div className="si">02</div><h3>The agent collects</h3><p>Every round it pulls each contribution in your own stablecoin, NGNm or USDm, automatically if you allow it.</p></div>
           <div className="step"><div className="si">03</div><h3>Someone gets paid</h3><p>The full pot goes to whoever&rsquo;s turn it is, the same day, with nothing taken out. Then the seat moves on.</p></div>
         </div>
@@ -158,7 +158,7 @@ export default function Landing() {
         <span className="kick">Common questions</span>
         <h2 className="h2">The honest answers.</h2>
         <div className="faq-grid">
-          <div className="faq-item"><h4><span className="qn">Q1</span>Do I need a bank account or crypto?</h4><p>No. You join with your phone number inside MiniPay and save in a local stablecoin, NGNm or USDm. No bank, no seed phrase, and gas is paid in stablecoin.</p></div>
+          <div className="faq-item"><h4><span className="qn">Q1</span>Do I need a bank account or crypto?</h4><p>No. You join inside MiniPay, the phone wallet you already use, and save in a local stablecoin, NGNm or USDm. No bank, no seed phrase, and gas is paid in stablecoin.</p></div>
           <div className="faq-item"><h4><span className="qn">Q2</span>What if someone doesn&rsquo;t pay their round?</h4><p>Each member posts a one-round security deposit. If someone misses, that deposit covers the round so the payout still ships in full, on time. Nobody has to chase anybody.</p></div>
           <div className="faq-item"><h4><span className="qn">Q3</span>Who decides the payout order?</h4><p>The circle does, when it starts. Once locked, the order can&rsquo;t be changed by anyone, including us. Your turn is guaranteed.</p></div>
           <div className="faq-item"><h4><span className="qn">Q4</span>What is a Trust Score, and is it mine?</h4><p>It&rsquo;s a portable savings-credit score (ERC-8004) you build by finishing circles on time. It travels with you to lenders, landlords and bigger circles.</p></div>

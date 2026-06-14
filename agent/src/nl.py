@@ -3,7 +3,7 @@
 HARD RULE (CLAUDE.md §1.3): the LLM NEVER moves money and never authorizes an action the
 contract wouldn't enforce. It only *explains* facts read from chain. Money actions come from
 the rule-based `decide()` in loop.py. This module: (1) extracts factual answers from a
-CircleView deterministically, (2) optionally phrases them via Claude in the member's language.
+CircleView deterministically, (2) optionally phrases them via an LLM in the member's language.
 If no LLM key is set, the deterministic answer is returned as-is (still correct, just terser).
 """
 
@@ -14,7 +14,9 @@ from dataclasses import dataclass
 from .chain import CircleView
 
 # NL handler model — small + fast, explanation only (docs/STACK.md). Never tool-enabled.
-NL_MODEL = "claude-haiku-4-5"
+# DeepSeek (OpenAI-compatible) so the rephrasing runs on the key the deployment holds.
+NL_MODEL = "deepseek-chat"
+DEEPSEEK_URL = "https://api.deepseek.com/chat/completions"
 
 SYSTEM_PROMPT = """You are AjoAI's member assistant for a rotating savings circle \
 (ajo/esusu/chama/stokvel) on Celo. You ONLY explain facts you are given about the circle. \
@@ -101,39 +103,45 @@ def facts_for(view: CircleView, member: str, token_decimals: int = 18) -> Member
 
 
 def answer(question: str, facts: MemberFacts, api_key: str | None) -> str:
-    """Phrase the deterministic answer in the member's language via Claude (optional)."""
+    """Phrase the deterministic answer in the member's language via an LLM (optional).
+
+    Uses DeepSeek's OpenAI-compatible chat-completions endpoint. The deterministic baseline is
+    passed as authoritative, so the model can only rephrase (never invent a money fact, §1.3).
+    Any failure falls back to the baseline, so a missing/invalid key never breaks the answer.
+    """
     baseline = facts.baseline_answer()
     if not api_key:
         return baseline
 
     try:
-        import anthropic
-    except ImportError:
-        return baseline
+        import requests
 
-    client = anthropic.Anthropic(api_key=api_key)
-    context = (
-        f"FACTS (authoritative, from chain):\n"
-        f"- circle state: {facts.state}\n"
-        f"- is member: {facts.is_member}\n"
-        f"- has received payout: {facts.has_received}\n"
-        f"- delinquent: {facts.is_delinquent}\n"
-        f"- rounds until your turn: {facts.rounds_until_your_turn}\n"
-        f"- pot: {facts.intended_pot_str}\n"
-        f"- deterministic answer to relay: {baseline}\n"
-    )
-    msg = client.messages.create(
-        model=NL_MODEL,
-        max_tokens=200,
-        system=[
-            {
-                "type": "text",
-                "text": SYSTEM_PROMPT,
-                "cache_control": {"type": "ephemeral"},  # cache the long system prompt
-            }
-        ],
-        messages=[
-            {"role": "user", "content": f"{context}\nMember asks: {question}"},
-        ],
-    )
-    return "".join(block.text for block in msg.content if block.type == "text").strip() or baseline
+        context = (
+            f"FACTS (authoritative, from chain):\n"
+            f"- circle state: {facts.state}\n"
+            f"- is member: {facts.is_member}\n"
+            f"- has received payout: {facts.has_received}\n"
+            f"- delinquent: {facts.is_delinquent}\n"
+            f"- rounds until your turn: {facts.rounds_until_your_turn}\n"
+            f"- pot: {facts.intended_pot_str}\n"
+            f"- deterministic answer to relay: {baseline}\n"
+        )
+        res = requests.post(
+            DEEPSEEK_URL,
+            headers={"content-type": "application/json", "authorization": f"Bearer {api_key}"},
+            json={
+                "model": NL_MODEL,
+                "max_tokens": 200,
+                "messages": [
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": f"{context}\nMember asks: {question}"},
+                ],
+            },
+            timeout=20,
+        )
+        if not res.ok:
+            return baseline
+        text = (res.json().get("choices", [{}])[0].get("message", {}).get("content") or "").strip()
+        return text or baseline
+    except Exception:  # noqa: BLE001 — any LLM/transport error -> safe deterministic baseline
+        return baseline
