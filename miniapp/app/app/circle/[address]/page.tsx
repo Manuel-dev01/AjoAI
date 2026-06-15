@@ -9,7 +9,10 @@ import { AppBar, Avatar, Lrow, Pill, ConnectButton } from "@/components/ui";
 import { InvitePanel } from "@/components/InvitePanel";
 import { AskAgent } from "@/components/AskAgent";
 import { FaucetButton, useTokenBalance } from "@/components/Faucet";
-import { useCeloWrite } from "@/lib/tx";
+import { CureButton } from "@/components/CureButton";
+import { ConvertPanel } from "@/components/ConvertPanel";
+import { GasHint } from "@/components/GasHint";
+import { useCeloWrite, friendlyTxError } from "@/lib/tx";
 import { circleAbi, erc20Abi, STATE_NAMES } from "@/lib/abi";
 import { useCircle, useToken, useMembers, useMyStatus, useCircleActivity, type ActivityEvent } from "@/lib/circle";
 import { fmtAmount, short } from "@/lib/format";
@@ -38,7 +41,13 @@ function CircleView({ address }: { address: `0x${string}` }) {
   const forming = c.state === 0;
   const active = c.state === 1;
   const yourTurn = active && Boolean(my.me && c.recipient && my.me.toLowerCase() === c.recipient.toLowerCase());
-  const anyLate = active && members.some((m) => m.isDelinquent);
+  // Split delinquency: the agent auto-covers a NON-recipient miss from its deposit and continues
+  // (the "We've got this round" case). But a delinquent RECIPIENT means triggerPayout WITHHOLDS —
+  // the circle is paused until they cure() (CLAUDE.md §4). These must read very differently.
+  const recipientDelinquent = active && Boolean(c.recipient && members.some((m) => m.isDelinquent && m.address.toLowerCase() === c.recipient!.toLowerCase()));
+  const nonRecipientLate = active && members.some((m) => m.isDelinquent && !(c.recipient && m.address.toLowerCase() === c.recipient!.toLowerCase()));
+  const iAmDelinquent = active && Boolean(my.isDelinquent);
+  const refetchAll = () => { c.refetch(); my.refetch(); refetchMembers(); };
 
   return (
     <>
@@ -57,14 +66,37 @@ function CircleView({ address }: { address: `0x${string}` }) {
 
         {tab === "circle" && active && (
           <>
-            {yourTurn && (
+            {/* Recipient is delinquent → payout WITHHELD; the circle is paused until they cure. */}
+            {recipientDelinquent && (
+              <div className="notice" style={{ background: "var(--ink)", color: "var(--cream)" }}>
+                <div className="shield">
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="6" y="4" width="4" height="16" rx="1" /><rect x="14" y="4" width="4" height="16" rx="1" /></svg>
+                </div>
+                <h3>Payout paused</h3>
+                <p>Waiting for {yourTurn ? "you" : short(c.recipient)} to restore the security deposit. The full pot ships the moment it&rsquo;s back.</p>
+              </div>
+            )}
+
+            {/* You are delinquent → cure to clear the flag (and release your payout if it&rsquo;s your turn). */}
+            {iAmDelinquent && (
+              <div className="banner" style={{ background: "var(--ochre)", color: "var(--ink)", borderColor: "var(--ink)" }}>
+                <p style={{ margin: 0, fontWeight: 800 }}>{yourTurn ? "Restore your deposit to receive your payout" : "You’re marked delinquent"}</p>
+                <p style={{ margin: "4px 0 0", fontSize: 13 }}>A missed contribution was covered from your deposit. Restore it to clear the flag{yourTurn ? " and release your payout." : " and keep your future payout."}</p>
+                <CureButton address={address} token={c.token} deposit={c.deposit} symbol={symbol} decimals={decimals} onCured={refetchAll} />
+              </div>
+            )}
+
+            {/* Cheerful your-turn hero — only when not withheld by your own delinquency. */}
+            {yourTurn && !my.isDelinquent && (
               <div className="invite" style={{ background: "var(--clay)" }}>
                 <RingMark variant="static" />
                 <div className="nm">It&rsquo;s your turn!</div>
                 <div className="meta">The agent pays you {fmtAmount(c.pot, symbol, decimals)} once everyone&rsquo;s in.</div>
               </div>
             )}
-            {anyLate && (
+
+            {/* A NON-recipient is late → deposit covers it, circle continues. This is the autonomous path. */}
+            {nonRecipientLate && !recipientDelinquent && (
               <div className="notice">
                 <div className="shield">
                   <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2 4 5v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V5l-8-3Z" /><path d="m9 12 2 2 4-4" /></svg>
@@ -81,14 +113,21 @@ function CircleView({ address }: { address: `0x${string}` }) {
             </div>
 
             {members.map((m) => {
+              const isMe = m.address.toLowerCase() === my.me?.toLowerCase();
               const isRecipient = c.recipient && m.address.toLowerCase() === c.recipient.toLowerCase();
-              const kind = isRecipient ? "turn" : m.isDelinquent ? "late" : m.contributed ? "paid" : "due";
-              const label = isRecipient ? "Their turn" : m.isDelinquent ? "Late" : m.contributed ? "Paid" : "Due";
+              // The recipient STILL contributes in their own round (CLAUDE.md §4), so the pay pill
+              // is shown for EVERYONE — it flips Due→Paid when they pay. "Receiving" is a separate
+              // marker, not a status that hides whether they've paid.
+              const payKind = m.isDelinquent ? "late" : m.contributed ? "paid" : "due";
+              const payLabel = m.isDelinquent ? "Late" : m.contributed ? "Paid" : "Due";
               return (
                 <div className="mrow" key={m.address}>
                   <Avatar addr={m.address} size={28} />
-                  <span className="nm">{m.address.toLowerCase() === my.me?.toLowerCase() ? "You" : short(m.address)}</span>
-                  <Pill kind={kind as "paid" | "turn" | "due" | "late"}>{label}</Pill>
+                  <span className="nm">{isMe ? "You" : short(m.address)}</span>
+                  <span className="pills">
+                    {isRecipient && <Pill kind="turn">{isMe ? "Your turn" : "Receiving"}</Pill>}
+                    <Pill kind={payKind as "paid" | "due" | "late"}>{payLabel}</Pill>
+                  </span>
                 </div>
               );
             })}
@@ -147,15 +186,15 @@ function FormingView({ address, c, my, members, name, symbol, decimals, refetch 
 
   async function approve() {
     if (!c.token || c.deposit === undefined) return;
-    const h = await write({ address: c.token, abi: erc20Abi, functionName: "approve", args: [address, c.deposit] });
+    const h = await write({ address: c.token, abi: erc20Abi, functionName: "approve", args: [address, c.deposit], gas: 120_000n });
     setTxHash(h); setTimeout(() => refetchAllow(), 4000);
   }
   async function join() {
-    const h = await write({ address, abi: circleAbi, functionName: "join", args: ["0x"] });
+    const h = await write({ address, abi: circleAbi, functionName: "join", args: ["0x"], gas: 600_000n });
     setTxHash(h);
   }
   async function start() {
-    const h = await write({ address, abi: circleAbi, functionName: "start", args: [] });
+    const h = await write({ address, abi: circleAbi, functionName: "start", args: [], gas: 500_000n });
     setTxHash(h);
   }
   async function deleteCircle() {
@@ -175,7 +214,7 @@ function FormingView({ address, c, my, members, name, symbol, decimals, refetch 
           You created this circle. Be the first member, join below to take your slot, then invite the rest.
         </div>
       )}
-      {error && <p className="banner">{error.message.slice(0, 140)}</p>}
+      {error && <p className="banner">{friendlyTxError(error)}</p>}
 
       <div style={{ marginTop: 14, display: "grid", gap: 9 }}>
         {!isConnected ? (
@@ -197,13 +236,17 @@ function FormingView({ address, c, my, members, name, symbol, decimals, refetch 
               <FaucetButton token={c.token} need={c.deposit} symbol={symbol} decimals={decimals} onMinted={refetchBal} />
             </>
           ) : (
-            <p className="muted">You need {fmtAmount(c.deposit, symbol, decimals)} in your wallet to post the deposit.</p>
+            <>
+              <p className="muted">You need {fmtAmount(c.deposit, symbol, decimals)} to post the deposit.</p>
+              <ConvertPanel needToken={c.token} needSymbol={symbol} needDecimals={decimals} need={c.deposit} onConverted={refetchBal} />
+            </>
           )
         ) : needsApproval ? (
           <button className="btn btn-block" disabled={busy} onClick={approve}>{busy ? "Approving…" : `1. Approve deposit (${fmtAmount(c.deposit, symbol, decimals)})`}</button>
         ) : (
           <button className="btn btn-ochre btn-block" disabled={busy} onClick={join}>{busy ? "Joining…" : "Join this circle"}</button>
         )}
+        <GasHint />
       </div>
 
       <div style={{ marginTop: 16 }}>
@@ -252,14 +295,19 @@ function PayTab({ address, c, symbol, decimals, my }: { address: `0x${string}`; 
   const { balance, refetch: refetchBal } = useTokenBalance(c.token);
   const lowBalance = c.contribution !== undefined && (balance === undefined || balance < c.contribution);
   const needsApproval = c.contribution !== undefined && (allowance === undefined || (allowance as bigint) < c.contribution);
+  // Window state from the contract's own deadlines: past grace, contribute() reverts PastGrace, so
+  // never offer "Pay" (the UI is the gate; the contract is the real one). In grace = late + fee.
+  const nowSec = Math.floor(Date.now() / 1000);
+  const pastGrace = c.graceClose !== undefined && nowSec >= Number(c.graceClose);
+  const inGrace = !pastGrace && c.windowClose !== undefined && nowSec >= Number(c.windowClose);
 
   async function approve() {
     if (!c.token || c.contribution === undefined) return;
-    const h = await write({ address: c.token, abi: erc20Abi, functionName: "approve", args: [address, c.contribution] });
+    const h = await write({ address: c.token, abi: erc20Abi, functionName: "approve", args: [address, c.contribution], gas: 120_000n });
     setTxHash(h); setTimeout(() => refetch(), 4000);
   }
   async function pay() {
-    const h = await write({ address, abi: circleAbi, functionName: "contribute", args: [] });
+    const h = await write({ address, abi: circleAbi, functionName: "contribute", args: [], gas: 600_000n });
     setTxHash(h); setTimeout(() => my.refetch(), 4000);
   }
   const busy = isPending || (!!txHash && !receipt);
@@ -294,14 +342,27 @@ function PayTab({ address, c, symbol, decimals, my }: { address: `0x${string}`; 
       </>
     );
   }
+  // Past grace + unpaid: contribute() would revert PastGrace. Don't offer Pay — explain the cover.
+  if (pastGrace) {
+    return (
+      <div className="empty">
+        <RingMark variant="full" />
+        <div style={{ fontWeight: 700, marginTop: 4 }}>This round&rsquo;s window has closed</div>
+        <div className="muted" style={{ marginTop: 4 }}>
+          The agent covers any miss from your security deposit — you keep your place, with a small reputation note.
+          Restore your deposit any time from the Circle tab to clear it.
+        </div>
+      </div>
+    );
+  }
   return (
     <>
-      <div className="heading">Your circle is counting on you</div>
-      <div className="subt">Pay your round · gas is covered in {symbol || "USDm"}</div>
+      <div className="heading">{inGrace ? "Last chance this round" : "Your circle is counting on you"}</div>
+      <div className="subt">{inGrace ? `Window closed — paying now is late (small fee), but you keep your place · gas in ${symbol || "USDm"}` : `Pay your round · gas is covered in ${symbol || "USDm"}`}</div>
       <div className="contrib"><div className="a"><small>{symbol}</small>{fmtAmount(c.contribution, "", decimals)}</div><div className="l">Your contribution</div></div>
       <Lrow k="From" v={`MiniPay · ${symbol}`} />
       <Lrow k="Goes to" v={`${short(c.recipient)}'s payout`} vColor="var(--clay-d)" />
-      {error && <p className="banner">{error.message.slice(0, 120)}</p>}
+      {error && <p className="banner">{friendlyTxError(error)}</p>}
       <div style={{ marginTop: 14, display: "grid", gap: 9 }}>
         {!isConnected ? <ConnectButton /> : lowBalance ? (
           FAUCETABLE ? (
@@ -310,13 +371,17 @@ function PayTab({ address, c, symbol, decimals, my }: { address: `0x${string}`; 
               <FaucetButton token={c.token} need={c.contribution} symbol={symbol} decimals={decimals} onMinted={refetchBal} />
             </>
           ) : (
-            <p className="muted">You need {fmtAmount(c.contribution, symbol, decimals)} in your wallet to pay this round.</p>
+            <>
+              <p className="muted">You need {fmtAmount(c.contribution, symbol, decimals)} to pay this round.</p>
+              <ConvertPanel needToken={c.token} needSymbol={symbol} needDecimals={decimals} need={c.contribution} onConverted={refetchBal} />
+            </>
           )
         ) : needsApproval ? (
           <button className="btn btn-block" disabled={busy} onClick={approve}>{busy ? "Approving…" : "1. Approve"}</button>
         ) : (
-          <button className="btn btn-ochre btn-block" disabled={busy} onClick={pay}>{busy ? "Paying…" : `Pay ${fmtAmount(c.contribution, symbol, decimals)}`}</button>
+          <button className="btn btn-ochre btn-block" disabled={busy} onClick={pay}>{busy ? "Paying…" : inGrace ? `Pay ${fmtAmount(c.contribution, symbol, decimals)} · late` : `Pay ${fmtAmount(c.contribution, symbol, decimals)}`}</button>
         )}
+        <GasHint />
       </div>
     </>
   );

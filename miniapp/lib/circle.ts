@@ -34,12 +34,17 @@ export function useCircle(address?: Addr) {
   });
   const r = data?.map((d) => d.result);
   const round = r?.[1] as bigint | undefined;
-  const { data: recipient } = useReadContract({
-    address,
-    abi: circleAbi,
-    functionName: "recipientOf",
-    args: round !== undefined ? [round] : undefined,
-    query: { enabled: address !== undefined && round !== undefined },
+  // Recipient + the round's window/grace deadlines, all keyed on the current round. windowClose /
+  // graceClose are the contract's own view fns (roundStart+period [+grace]); the UI uses them to
+  // gate Pay (post-grace contribute() reverts PastGrace) — the contract stays the real gate.
+  const c2 = { address, abi: circleAbi } as const;
+  const { data: roundData } = useReadContracts({
+    query: { enabled: address !== undefined && round !== undefined, refetchInterval: 12_000 },
+    contracts: [
+      { ...c2, functionName: "recipientOf", args: round !== undefined ? [round] : undefined },
+      { ...c2, functionName: "windowClose", args: round !== undefined ? [round] : undefined },
+      { ...c2, functionName: "graceClose", args: round !== undefined ? [round] : undefined },
+    ],
   });
   return {
     isLoading,
@@ -55,7 +60,9 @@ export function useCircle(address?: Addr) {
     membersLength: r?.[8] as bigint | undefined,
     penaltyPool: r?.[9] as bigint | undefined,
     organizer: r?.[10] as Addr | undefined,
-    recipient: recipient as Addr | undefined,
+    recipient: roundData?.[0]?.result as Addr | undefined,
+    windowClose: roundData?.[1]?.result as bigint | undefined,
+    graceClose: roundData?.[2]?.result as bigint | undefined,
   };
 }
 
@@ -92,7 +99,9 @@ export function useMembers(address?: Addr, count?: bigint, round?: bigint) {
     [memberCalls.data],
   );
   const statusCalls = useReadContracts({
-    query: { enabled: addrs.length > 0 && round !== undefined },
+    // Poll so the Circle tab flips a member Due→Paid (and Late) live after anyone contributes,
+    // without needing a round change or a manual refetch.
+    query: { enabled: addrs.length > 0 && round !== undefined, refetchInterval: 12_000 },
     contracts: addrs.flatMap((m) => [
       { address: address as Addr, abi: circleAbi, functionName: "hasReceived" as const, args: [m] as const },
       { address: address as Addr, abi: circleAbi, functionName: "isDelinquent" as const, args: [m] as const },
