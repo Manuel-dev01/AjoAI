@@ -265,13 +265,13 @@ function FormingView({ address, c, my, members, name, symbol, decimals, refetch 
       {isOrganizer && (
         <div style={{ marginTop: 16 }}>
           {confirmDelete ? (
-            <div className="banner" style={{ background: "var(--clay)", color: "#fff", borderColor: "var(--clay-d)" }}>
-              <p style={{ margin: "0 0 10px" }}>
-                This refunds every member&rsquo;s deposit and permanently dissolves the circle. This can&rsquo;t be undone.
+            <div style={{ display: "grid", gap: 10 }}>
+              <p className="banner" style={{ background: "var(--clay)", color: "#fff", borderColor: "#3a1206", margin: 0 }}>
+                This refunds every member&rsquo;s deposit and permanently dissolves the circle. It can&rsquo;t be undone.
               </p>
               <div style={{ display: "grid", gap: 9, gridTemplateColumns: "1fr 1fr" }}>
-                <button className="btn-ghost" disabled={busy} onClick={() => setConfirmDelete(false)}>Cancel</button>
-                <button className="btn btn-ink" disabled={busy} onClick={deleteCircle}>{busy ? "Deleting…" : "Yes, delete circle"}</button>
+                <button className="btn btn-cream" disabled={busy} onClick={() => setConfirmDelete(false)}>Cancel</button>
+                <button className="btn btn-clay" disabled={busy} onClick={deleteCircle}>{busy ? "Deleting…" : "Delete"}</button>
               </div>
             </div>
           ) : (

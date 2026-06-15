@@ -27,11 +27,10 @@ gas was spent). Run report: `config/demo_run.mainnet.json`.
 The agent runs as an always-on Railway worker (`run-all 30`, CHAIN=mainnet), sweeping the
 mainnet factory every 30 seconds with no operator in the loop.
 
-## Live on Celo Sepolia (chainId 11142220)
-Testnet validation, all contracts source-verified on Blockscout. A full 4-member rotation
-completed end-to-end (circle `0x3DdF59747B9592b50D40fbBCcaD958078E9b3c68`, Completed,
-reconcile in == out == 2000 units). ERC-8004 agentId 307. Used for the in-app faucet flow with
-mintable test tokens, since real Mento stablecoins are not faucetable on testnet.
+## Testnet (Celo Sepolia) — development only
+The same contracts were validated end-to-end on Sepolia during development (a full 4-member
+rotation, agentId 307) and the app's faucet flow uses mintable test tokens there. **Mainnet is the
+canonical, shipped deployment** — all proof/addresses above are mainnet.
 
 ## Implementation
 - Contracts (Foundry): `Circle`, `CircleFactory`, `ReputationLedger`, `SimulatedYieldAdapter`,

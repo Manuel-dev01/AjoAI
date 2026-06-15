@@ -30,37 +30,6 @@ enforces every rule**; the **agent only triggers legal transitions** and can nev
 drain a circle or pay an arbitrary address; the **LLM never moves funds**, it only
 explains chain state.
 
-## Live on Celo Sepolia (chainId 11142220), verifiable now
-All contracts source-verified on [Blockscout](https://celo-sepolia.blockscout.com).
-
-| Contract | Address |
-|---|---|
-| CircleFactory | [`0x032fEE17…2191`](https://celo-sepolia.blockscout.com/address/0x032fEE1776508fE59bA715120Bc190b682162191) |
-| ReputationLedger | [`0x12Ac76Fd…B3Ce`](https://celo-sepolia.blockscout.com/address/0x12Ac76Fd85500fd1dF47D6bF15B6B275eA3FB3Ce) |
-| SimulatedYieldAdapter | [`0x22b1AA60…3640`](https://celo-sepolia.blockscout.com/address/0x22b1AA6022AfE68F5F019229Bf785D8083cD3640) |
-| Example Circle (NGNm) | [`0xc578127F…6cb4`](https://celo-sepolia.blockscout.com/address/0xc578127F2978896ef1b4995CE44D780C89676cb4) |
-
-**ERC-8004 agent identity:** registered as **agentId 307** on the Identity
-Registry (`0x8004A818…`), track #3 (8004scan rank).
-
-### Proof: a complete autonomous rotation (real Sepolia txs)
-The agent drove an entire 4-member circle end-to-end, every payout triggered by the
-agent, not a human. Circle [`0x3DdF…3c68`](https://celo-sepolia.blockscout.com/address/0x3DdF59747B9592b50D40fbBCcaD958078E9b3c68)
-finished in state **Completed**, `roundsPaid = 4`, and **reconcile in == out == 2000
-units** (no wei created or destroyed, on-chain).
-
-| Round | Autonomous payout tx |
-|---|---|
-| 0 | [`e57366f3…`](https://celo-sepolia.blockscout.com/tx/0xe57366f3d5391dc84a4c243da20a7cc6e126e3e0d464b6c652e9d3363ae61550) |
-| 1 | [`393cdbc9…`](https://celo-sepolia.blockscout.com/tx/0x393cdbc9024abc09a9ce88a5f8695d092b838a32e5ee40487f3b8f5f0e996478) |
-| 2 | [`4280b929…`](https://celo-sepolia.blockscout.com/tx/0x4280b929aece1e54d0fa513b38f9a9f294b3047706aff38298acfc701f0080a9) |
-| 3 | [`445b4fe7…`](https://celo-sepolia.blockscout.com/tx/0x445b4fe7330f10a69b0de5388646b8944fb1c36e337dce5eb53eea59baddf19b) |
-| finalize | [`02c5da0d…`](https://celo-sepolia.blockscout.com/tx/0x02c5da0deca23f77ab4170435dfa0d306eba371eeff506153bc5b94282045e0c) |
-
-Each member earned an on-chain savings-credit score of **9** (4 on-time contributions
-+ clean completion). The demo token is a MockERC20 mirroring NGNm's 18 decimals
-(loudly logged as a mock); the mainnet rotation below uses **real Tether USD₮**.
-
 ## Live on Celo mainnet (chainId 42220), real money, verifiable now
 All contracts source-verified on [Celoscan](https://celoscan.io) (Sourcify exact_match).
 
@@ -87,6 +56,10 @@ destroyed, real money). Members scored **8** each; the seed funds were fully rec
 | finalize | [`2ca4f1a4…`](https://celoscan.io/tx/0x2ca4f1a477a4f70a12746f51a29673790102cd38f7a59215c8667bfa59497220) |
 
 The agent runs as an always-on Railway worker (`run-all 30`) sweeping the mainnet factory every 30s.
+
+> _Testnet:_ the same contracts were also validated end-to-end on Celo Sepolia during development
+> (a full 4-member rotation, agentId 307). Mainnet above is the canonical, real-money deployment —
+> all proof and addresses here are mainnet.
 
 ## Built on Celo
 - **Mento** local stablecoins, **USDm** (Mento Dollar) and **NGNm** (Mento Naira);
