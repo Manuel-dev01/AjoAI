@@ -1,6 +1,6 @@
 # AjoAI Project Status
 
-Last updated: 2026-06-14.
+Last updated: 2026-06-15.
 
 AjoAI is an autonomous rotating-savings (ajo / esusu / chama / stokvel) agent on Celo,
 distributed as a MiniPay Mini App. The contract holds the money and enforces every rule; the
@@ -71,6 +71,28 @@ mintable test tokens, since real Mento stablecoins are not faucetable on testnet
   EN/Pidgin/Swahili), and the portable score share page.
 - Hosted agent live as an always-on Railway worker (`run-all 30`, CHAIN=mainnet), sweeping the
   mainnet factory every 30 seconds, including autonomous idle-fund `park_idle`/`withdraw_idle`.
+
+## Frontend UX hardening (2026-06-15)
+- Circle dashboard is now window-aware: it reads the contract's `windowClose`/`graceClose` and gates
+  the Pay tab — within the window "Pay", in grace "Pay · late", past grace it stops offering Pay (which
+  would revert `PastGrace`) and explains the deposit-cover instead. Member rows show recipient marker +
+  live Paid/Due/Late, and poll so a payment flips Due→Paid on screen.
+- The delinquency banner is split: a *non-recipient* miss keeps "We've got this round" (the agent
+  auto-covers from the deposit and continues); a *delinquent recipient* now reads "Payout paused —
+  waiting for … to restore their deposit" and exposes a **cure()** CTA (`CureButton`) — the human
+  unblock for the deliberate recipient-withheld case.
+- Mainnet currency flow: circles default to USDm (the only MiniPay gas currency, 1:1 Pockets-swappable
+  from USDT/USDC); a `ConvertPanel` replaces the old "you need X" dead-end — Pockets guidance for the
+  stable trio, and an in-app **Mento Broker** swap USDm→NGNm for the FX leg (Broker
+  `0x777A8255cA72412f0d706dc03C9D1987306B4CaD`, verified USDm/NGNm exchange + quote). A `GasHint` nudges
+  topping up USDm for gas. Frontend writes now pass explicit gas limits to dodge Celo's flaky
+  `eth_estimateGas`, and revert reasons map to human copy (`friendlyTxError`).
+
+## Known gap (future contract work)
+- A delinquent recipient who never cures **freezes the circle**: `triggerPayout` withholds and the agent
+  waits indefinitely — there is no on-chain path to skip the slot and redistribute without `cure()`.
+  Resolving it autonomously needs a `Circle.sol` change + mainnet redeploy (e.g. a "force-default a
+  long-withheld round" trigger). The cure CTA is the near-term unblock.
 
 ## Remaining for submission
 1. Self Agent ID: the registration session is bootstrapped programmatically; the human passport

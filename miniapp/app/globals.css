@@ -171,7 +171,7 @@ button{font-family:inherit;}
 .appbar .bk{font-size:20px;font-weight:700;cursor:pointer;}
 .appbar .tt{font-family:var(--display);font-weight:800;font-size:17px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .appbar .mini{font-family:var(--display);font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;background:var(--green);color:var(--cream);padding:3px 9px;}
-.appbar svg .member{fill:#3E9577;}.appbar svg .agent{fill:var(--ink);}.appbar svg .active{fill:var(--ochre);}
+.appbar svg .member{fill:var(--green);}.appbar svg .agent{fill:var(--green-d);}.appbar svg .active{fill:var(--ochre);}
 .appmain{padding:4px 18px 24px;flex:1;}
 .fixbtn{position:sticky;bottom:0;padding:14px 18px calc(14px + env(safe-area-inset-bottom));background:linear-gradient(to top,var(--cream) 70%,transparent);}
 
@@ -237,6 +237,8 @@ button{font-family:inherit;}
 .mrow .av{width:28px;height:28px;font-size:12px;}
 .mrow .nm{font-size:13px;font-weight:700;}
 .mrow .pill{margin-left:auto;}
+.mrow .pills{margin-left:auto;display:flex;gap:6px;align-items:center;}
+.mrow .pills .pill{margin-left:0;}
 
 /* tabs */
 .tabs{display:flex;border:2.5px solid var(--ink);margin-bottom:14px;}

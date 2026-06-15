@@ -29,9 +29,13 @@ const TEST_TOKEN_LIST: TokenInfo[] = [
   { sym: "NGNm", addr: "0x435917C839dFE442255B2E4D717DF7de1601E6f7", decimals: 18 },
   { sym: "USDm", addr: "0x3019C211F3B664e18A58213d20482D4E658A7527", decimals: 18 },
 ];
+// USDm FIRST: it's the only MiniPay gas currency AND is 1:1 swappable from USDT/USDC in MiniPay's
+// native Pockets — so it's the lowest-friction default for new circles. NGNm is a real FX swap
+// (Mento Broker), not in Pockets, so it's last.
 const MAINNET_TOKEN_LIST: TokenInfo[] = [
-  { sym: "USDT", addr: "0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e", decimals: 6 },
   { sym: "USDm", addr: "0x765DE816845861e75A25fCA122bb6898B8B1282a", decimals: 18 },
+  { sym: "USDT", addr: "0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e", decimals: 6 },
+  { sym: "USDC", addr: "0xcebA9300f2b948710d2653dD7B07f33A8B32118C", decimals: 6 },
   { sym: "NGNm", addr: "0xE2702Bd97ee33c88c8f6f92DA3B733608aa76F71", decimals: 18 },
 ];
 export const TOKEN_LIST = activeChain.testnet ? TEST_TOKEN_LIST : MAINNET_TOKEN_LIST;
@@ -45,7 +49,15 @@ export const TOKENS = Object.fromEntries(
 export const FAUCETABLE = Boolean(activeChain.testnet);
 
 // CIP-64 gas-in-stablecoin: MiniPay only allows USDm as feeCurrency (Mento Dollar on mainnet).
+// So a MiniPay user MUST hold a little USDm for gas; USDT/USDC -> USDm is a 1:1 Pockets swap.
 export const FEE_CURRENCY = TOKENS.USDm as `0x${string}`;
+
+// Mento Protocol Broker (mainnet) for in-app cross-currency swaps (e.g. USDm -> NGNm). The
+// USDT/USDC <-> USDm stable trio is 1:1 via MiniPay's native Pockets, which also bootstraps gas;
+// the Broker is only needed for the real FX leg (NGNm) once the user has USDm for gas.
+export const MENTO_BROKER = "0x777A8255cA72412f0d706dc03C9D1987306B4CaD" as `0x${string}`;
+// Stablecoins that MiniPay Pockets swaps 1:1 (so we deep-link to Pockets instead of a dApp swap).
+export const POCKETS_STABLES = ["USDm", "USDT", "USDC"] as const;
 
 export const demoCircle = (): `0x${string}` =>
   (process.env.NEXT_PUBLIC_CIRCLE as `0x${string}`) || (CONTRACTS.demoCircle as `0x${string}`);

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { parseEventLogs, parseUnits } from "viem";
 import { useAccount, useWaitForTransactionReceipt } from "wagmi";
 import { AppBar, ConnectButton } from "@/components/ui";
-import { useCeloWrite } from "@/lib/tx";
+import { useCeloWrite, friendlyTxError } from "@/lib/tx";
 import { factoryAbi } from "@/lib/abi";
 import { FACTORY } from "@/lib/circle";
 import { TOKEN_LIST } from "@/lib/chain";
@@ -120,7 +120,7 @@ export default function CreateCircle() {
         </div>
 
         <p className="muted">A one-round security deposit ({amount || 0} {TOKEN_OPTS[tok].sym}) is posted by each member on joining. It covers a missed round and is returned on clean completion.</p>
-        {error && <p className="banner">{error.message.slice(0, 120)}</p>}
+        {error && <p className="banner">{friendlyTxError(error)}</p>}
       </div>
 
       <div className="fixbtn">

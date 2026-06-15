@@ -38,7 +38,9 @@ export function AppBar({ title, mini, back }: { title: string; mini?: string; ba
           ‹
         </Link>
       )}
-      <RingMark variant="static" size={22} />
+      <Link href="/app" aria-label="Home" style={{ flexShrink: 0 }}>
+        <RingMark variant="static" size={28} />
+      </Link>
       <span className="tt">{title}</span>
       {mini && <span className="mini">{mini}</span>}
     </div>
