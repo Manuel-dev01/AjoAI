@@ -1,6 +1,5 @@
 # ARCHITECTURE.md, AjoAI System Architecture
 
-> How the pieces fit. Domain rules live in `CLAUDE.md` §4 + `STATE_MACHINE.md`;
 > this is the component + data-flow + trust view.
 
 ---
