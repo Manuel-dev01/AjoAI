@@ -47,6 +47,11 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 
+# ─── Tooling / skill scaffolding + internal notes (not project code) ───
+.agents/
+skills-lock.json
+TESTING.md
+
 CLAUDE.md
 docs/DEMO.md
 docs/BUILD_PLAN.md
