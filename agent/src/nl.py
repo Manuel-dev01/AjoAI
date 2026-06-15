@@ -29,9 +29,16 @@ short (1-3 sentences), concrete, and money-accurate. Use the exact figures provi
 invent numbers; if a fact is not in the context, say you don't have it."""
 
 
-def _fmt(amount_wei: int, decimals: int = 18) -> str:
-    whole = amount_wei // (10**decimals)
-    return f"{whole:,}"
+def _fmt(amount_wei: int, decimals: int = 18, symbol: str = "units") -> str:
+    base = 10**decimals
+    whole = amount_wei // base
+    frac = amount_wei % base
+    s = f"{whole:,}"
+    if frac > 0:
+        two = (frac * 100) // base  # up to 2 fractional digits
+        if two > 0:
+            s += "." + f"{two:02d}".rstrip("0")
+    return f"{s} {symbol}"
 
 
 @dataclass
@@ -46,10 +53,26 @@ class MemberFacts:
     current_recipient: str | None
     state: str
     intended_pot_str: str
+    joined: int
+    slots: int
 
     def baseline_answer(self) -> str:
+        # Non-member: explain the circle's state instead of a flat rejection (the organizer who has
+        # not joined yet, an invitee browsing, or someone viewing a finished circle all land here).
         if not is_member_guard(self):
-            return "You are not a member of this circle."
+            if self.state == "Forming":
+                return (
+                    f"This circle is still forming: {self.joined} of {self.slots} have joined. "
+                    "You are not in it yet. Tap Join to take a slot (you post a one-round security "
+                    "deposit, returned on clean completion)."
+                )
+            if self.state == "Completed":
+                return "This circle has finished. Every member received their payout once and it is now complete."
+            if self.state == "Defaulted":
+                return "This circle has ended in default. Remaining funds were distributed to members who had not yet received."
+            if self.state == "Dissolved":
+                return "This circle was dissolved while still forming and all deposits were refunded."
+            return f"This circle is active with {self.slots} members; you are not a member of it."
         if self.is_delinquent:
             return (
                 "You are currently marked delinquent (a missed contribution past grace). "
@@ -98,7 +121,9 @@ def facts_for(view: CircleView, member: str, token_decimals: int = 18) -> Member
         rounds_until_your_turn=rounds_until,
         current_recipient=view.recipient,
         state=view.state_name,
-        intended_pot_str=f"{_fmt(view.intended_pot, token_decimals)} units",
+        intended_pot_str=_fmt(view.intended_pot, token_decimals),
+        joined=len(view.members),
+        slots=view.slots,
     )
 
 

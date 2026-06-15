@@ -1,12 +1,20 @@
 {
-  "_note": "Canonical ERC-8004 agent card. Served by the miniapp at /.well-known/agent-card.json (miniapp/public/.well-known/agent-card.json). The on-chain agentURI (registry tokenURI) should point at the DEPLOYED copy of this file so 8004scan can render the agent.",
-  "type": "https://eips.ethereum.org/EIPS/eip-8004#agent-card",
+  "_note": "Canonical ERC-8004 registration file (registration-v1). Served by the miniapp at /.well-known/agent-card.json (miniapp/public/.well-known/agent-card.json) and pointed to by the on-chain agentURI (tokenURI) so 8004scan can fetch + score the agent. Keep this and the served copy identical.",
+  "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
   "name": "AjoAI",
   "description": "Autonomous rotating-savings (ajo/esusu/chama/stokvel) agent on Celo. Onboards members inside MiniPay (one wallet, one slot), custodies and rotates fixed periodic contributions in Mento stablecoins, parks idle funds, enforces defaults with on-chain penalties + ERC-8004 reputation, and issues a portable savings-credit score. Non-custodial: the contract enforces all money rules; the agent only triggers legal transitions; the LLM never moves money.",
-  "image": "/icon.png",
+  "image": "https://ajo-ai-tan.vercel.app/icon.svg",
   "url": "https://ajo-ai-tan.vercel.app",
-  "endpoints": ["https://ajo-ai-tan.vercel.app/app", "https://ajo-ai-tan.vercel.app", "https://ajo-ai-tan.vercel.app/.well-known/agent-card.json"],
   "version": "0.1.0",
+  "active": true,
+  "x402Support": false,
+  "services": [
+    { "name": "web", "endpoint": "https://ajo-ai-tan.vercel.app" },
+    { "name": "A2A", "endpoint": "https://ajo-ai-tan.vercel.app/.well-known/agent-card.json", "version": "0.3.0" },
+    { "name": "MCP", "endpoint": "https://ajo-ai-tan.vercel.app/api/mcp", "version": "2025-06-18" },
+    { "name": "DID", "endpoint": "did:pkh:eip155:42220:0x8974881E39a5eF62214929B6CaA6EC0C6e7D47c7", "version": "v1" },
+    { "name": "email", "endpoint": "emmanuelolamiye@gmail.com" }
+  ],
   "provider": { "name": "AjoAI", "url": "https://github.com/AjoAI" },
   "skills": [
     { "id": "rosca.create", "name": "Create circle", "description": "Deploy a savings circle with fixed contribution, period, and rotation." },
@@ -20,6 +28,7 @@
     { "chainId": 42220, "agentId": 9339, "identityRegistry": "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432", "reputationRegistry": "0x8004BAa17C55a88189AE136b182e5fdA19dE9b63" },
     { "chainId": 11142220, "agentId": 307, "identityRegistry": "0x8004A818BFB912233c491871b3d84c89A494BD9e", "reputationRegistry": "0x8004B663056A597Dffe9eCcC1965A193B7388713" }
   ],
+  "supportedTrust": ["reputation"],
   "selfAgentId": null,
   "contracts": {
     "circleFactory.celoMainnet": "0xE2401Ab2ea9E4c68cBA9946e4079cd7eF4d82186",
@@ -27,7 +36,5 @@
     "circleFactory.celoSepolia": "0x032fEE1776508fE59bA715120Bc190b682162191",
     "reputationLedger.celoSepolia": "0x12Ac76Fd85500fd1dF47D6bF15B6B275eA3FB3Ce"
   },
-  "trustModels": ["reputation"],
-  "framework": "custom (Python web3.py); LLM = Claude (NL handler only, never moves money)",
-  "x402": ["guarantor-score (planned)", "circle-analytics (planned)"]
+  "framework": "custom (Python web3.py); LLM = DeepSeek (NL handler only, never moves money)"
 }

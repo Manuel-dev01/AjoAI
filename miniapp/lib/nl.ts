@@ -19,9 +19,18 @@ Answer in the SAME language the member used: English, Nigerian Pidgin, or Swahil
 short (1-3 sentences), concrete, and money-accurate. Use the exact figures provided. Never \
 invent numbers; if a fact is not in the context, say you don't have it.`;
 
-export function fmtUnits(amountWei: bigint, decimals: number): string {
-  const whole = amountWei / 10n ** BigInt(decimals);
-  return whole.toLocaleString("en-US");
+/** Format a token amount with up to 2 decimals + symbol, e.g. "0.6 USDT" (not "0 units"). */
+export function fmtUnits(amountWei: bigint, decimals: number, symbol = "units"): string {
+  const base = 10n ** BigInt(decimals);
+  const whole = amountWei / base;
+  const frac = amountWei % base;
+  let s = whole.toLocaleString("en-US");
+  if (frac > 0n) {
+    // two significant fractional digits
+    const twoDp = (frac * 100n) / base;
+    if (twoDp > 0n) s += "." + twoDp.toString().padStart(2, "0").replace(/0+$/, "");
+  }
+  return `${s} ${symbol}`;
 }
 
 /** Chain snapshot shape needed to derive a member's situation (mirrors CircleView). */
@@ -33,6 +42,8 @@ export type CircleSnapshot = {
   recipientDelinquent: boolean;
   stateName: string;
   intendedPot: bigint;
+  slots: number;
+  symbol: string;
 };
 
 export type MemberFacts = {
@@ -44,6 +55,8 @@ export type MemberFacts = {
   currentRecipient: string | null;
   state: string;
   intendedPotStr: string;
+  joined: number;
+  slots: number;
 };
 
 /** Pure: derive a member's situation from a chain snapshot (no LLM, no tx). */
@@ -72,13 +85,25 @@ export function factsFor(view: CircleSnapshot, member: string, tokenDecimals = 1
     roundsUntilYourTurn,
     currentRecipient: view.recipient,
     state: view.stateName,
-    intendedPotStr: `${fmtUnits(view.intendedPot, tokenDecimals)} units`,
+    intendedPotStr: fmtUnits(view.intendedPot, tokenDecimals, view.symbol),
+    joined: view.members.length,
+    slots: view.slots,
   };
 }
 
 /** Deterministic, money-safe answer derived purely from chain facts. */
 export function baselineAnswer(f: MemberFacts): string {
-  if (!f.isMember) return "You are not a member of this circle.";
+  // Non-member: answer about the circle's state instead of a flat rejection (the organizer who
+  // has not joined yet, an invitee browsing, or someone viewing a finished circle all land here).
+  if (!f.isMember) {
+    if (f.state === "Forming") {
+      return `This circle is still forming: ${f.joined} of ${f.slots} have joined. You are not in it yet. Tap Join to take a slot (you post a one-round security deposit, returned on clean completion).`;
+    }
+    if (f.state === "Completed") return "This circle has finished. Every member received their payout once and it is now complete.";
+    if (f.state === "Defaulted") return "This circle has ended in default. Remaining funds were distributed to members who had not yet received.";
+    if (f.state === "Dissolved") return "This circle was dissolved while still forming and all deposits were refunded.";
+    return `This circle is active with ${f.slots} members; you are not a member of it.`;
+  }
   if (f.isDelinquent) {
     return (
       "You are currently marked delinquent (a missed contribution past grace). " +

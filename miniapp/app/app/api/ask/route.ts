@@ -66,7 +66,13 @@ export async function POST(req: Request) {
       }
     }
 
-    const decimals = await client.readContract({ address: token, abi: erc20Abi, functionName: "decimals" });
+    const [decimals, symbol] = await client.multicall({
+      contracts: [
+        { address: token, abi: erc20Abi, functionName: "decimals" },
+        { address: token, abi: erc20Abi, functionName: "symbol" },
+      ],
+      allowFailure: false,
+    });
 
     const snapshot: CircleSnapshot = {
       members,
@@ -76,6 +82,8 @@ export async function POST(req: Request) {
       recipientDelinquent,
       stateName: STATE_NAMES[state] ?? "Unknown",
       intendedPot,
+      slots: slotCount,
+      symbol: (symbol as string) || "units",
     };
 
     const facts = factsFor(snapshot, member, decimals);

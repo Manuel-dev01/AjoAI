@@ -126,7 +126,7 @@ export default function CreateCircle() {
       <div className="fixbtn">
         {isConnected ? (
           <button className="btn btn-ochre btn-block" disabled={busy} onClick={submit}>
-            {busy ? "Creating…" : "Create & invite →"}
+            {busy ? "Creating…" : "Create & join →"}
           </button>
         ) : (
           <ConnectButton />

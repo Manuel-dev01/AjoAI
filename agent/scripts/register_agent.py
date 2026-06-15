@@ -51,7 +51,7 @@ def _agent_uri() -> str:
     # IMPORTANT: set AJOAI_AGENT_URI to the DEPLOYED miniapp URL (e.g. your Vercel domain) before
     # registering, so 8004scan can fetch + render the agent. Re-run this script to mint a fresh
     # agentId pointing at the live URL (the registry mints a new ERC-721 per register() call).
-    return os.getenv("AJOAI_AGENT_URI", "https://ajoai.app/.well-known/agent-card.json")
+    return os.getenv("AJOAI_AGENT_URI", "https://ajo-ai-tan.vercel.app/.well-known/agent-card.json")
 
 
 def main() -> None:
