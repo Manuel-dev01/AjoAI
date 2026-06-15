@@ -35,8 +35,9 @@ function CircleView({ address }: { address: `0x${string}` }) {
   const { symbol, decimals } = useToken(c.token);
   const my = useMyStatus(address, c.round);
   const { members, refetch: refetchMembers } = useMembers(address, c.membersLength, c.round);
-  // Prefetch activity in the background at mount, so the Activity tab opens instantly.
-  const { events: activityEvents, isLoading: activityLoading } = useCircleActivity(address, c.roundsPaid);
+  // Prefetch activity in the background — but only once the circle has activity to find (past
+  // Forming). On a brand-new Forming circle the deep log scan finds nothing and just wastes ~7s.
+  const { events: activityEvents, isLoading: activityLoading } = useCircleActivity(address, c.roundsPaid, c.state !== undefined && c.state !== 0);
   const name = getName(address) || `Circle ${short(address)}`;
   const forming = c.state === 0;
   const active = c.state === 1;
@@ -59,6 +60,14 @@ function CircleView({ address }: { address: `0x${string}` }) {
           <span className={`t${tab === "activity" ? " on" : ""}`} onClick={() => setTab("activity")}>Activity</span>
           <span className={`t${tab === "ask" ? " on" : ""}`} onClick={() => setTab("ask")}>Ask</span>
         </div>
+
+        {/* Circle scalar state still loading → show a spinner, not a blank content area. */}
+        {tab === "circle" && c.state === undefined && (
+          <div className="empty">
+            <RingMark variant="full" />
+            <div className="muted" style={{ marginTop: 8 }}>Loading circle…</div>
+          </div>
+        )}
 
         {tab === "circle" && forming && (
           <FormingView address={address} c={c} my={my} members={members} name={getName(address)} symbol={symbol} decimals={decimals} refetch={() => { c.refetch(); my.refetch(); refetchMembers(); }} />

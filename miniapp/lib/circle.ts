@@ -215,11 +215,14 @@ export type ActivityEvent = {
  * the chunked backward scan respects RPC range caps and early-stops once the circle's
  * contiguous activity is collected. Keyed on roundsPaid so it refreshes as the agent advances.
  */
-export function useCircleActivity(address?: Addr, roundsPaid?: bigint) {
+export function useCircleActivity(address?: Addr, roundsPaid?: bigint, enabled = true) {
   const client = usePublicClient({ chainId: activeChain.id });
   const q = useQuery({
     queryKey: ["activity", activeChain.id, address, roundsPaid?.toString() ?? "0"],
-    enabled: Boolean(address && client),
+    // Gate the scan: a Forming circle has no contributions/payouts yet, so the 200k-block backward
+    // scan would never early-stop (~7s of empty getLogs). Callers pass enabled=false until there's
+    // activity to find. Skipping it is what keeps the freshly-created circle page from going blank.
+    enabled: Boolean(address && client && enabled),
     staleTime: 30_000,
     queryFn: async (): Promise<ActivityEvent[]> => {
       if (!client || !address) return [];
