@@ -9,7 +9,7 @@
   "x402Support": false,
   "services": [
     { "name": "web", "endpoint": "https://ajo-ai-tan.vercel.app" },
-    { "name": "A2A", "endpoint": "https://ajo-ai-tan.vercel.app/.well-known/agent-card.json", "version": "0.3.0", "skills": ["rosca.create", "rosca.contribute", "rosca.payout", "rosca.default-recovery", "rosca.reputation", "nl.query"] },
+    { "name": "A2A", "endpoint": "https://ajo-ai-tan.vercel.app/api/a2a", "version": "0.3.0", "skills": ["rosca.create", "rosca.contribute", "rosca.payout", "rosca.default-recovery", "rosca.reputation", "nl.query"] },
     { "name": "MCP", "endpoint": "https://ajo-ai-tan.vercel.app/api/mcp", "version": "2025-06-18", "mcpTools": ["get_circle", "get_score", "ask", "list_circles"] },
     { "name": "DID", "endpoint": "did:pkh:eip155:42220:0x8974881E39a5eF62214929B6CaA6EC0C6e7D47c7", "version": "v1" },
     { "name": "email", "endpoint": "emmanuelolamiye@gmail.com" }
