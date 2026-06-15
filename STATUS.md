@@ -68,9 +68,18 @@ mintable test tokens, since real Mento stablecoins are not faucetable on testnet
 ## Deployed surfaces
 - Frontend live in production at https://ajo-ai-tan.vercel.app (and `/app`), serving the mainnet
   agent card (agentId 9339), the state-aware circle dashboard, the "Ask" tab (DeepSeek-backed,
-  EN/Pidgin/Swahili), and the portable score share page.
+  EN/Pidgin/Swahili), the portable score share page, and a read-only **MCP server** at `/api/mcp`
+  (get_circle / get_score / ask / list_circles) for agent interop.
 - Hosted agent live as an always-on Railway worker (`run-all 30`, CHAIN=mainnet), sweeping the
   mainnet factory every 30 seconds, including autonomous idle-fund `park_idle`/`withdraw_idle`.
+- **Demo video:** https://youtube.com/shorts/YYtcAh31yNA.
+
+## 8004scan agent page (2026-06-15)
+The ERC-8004 card (served at the registered `tokenURI`) was brought to the registration-v1 schema and
+re-indexed: typed `services` (web/A2A/MCP/DID/email; MCP lists its real `mcpTools`), `registrations`
+using the canonical `agentRegistry` CAIP form (clears 8004scan WA012), a resolvable **PNG logo**
+(`/icon.png`, the RingMark), and a live `provider` URL. Re-crawls were nudged via `setAgentURI(9339)`.
+A2A + MCP report healthy; email/DID are identifiers (not health-probed by design).
 
 ## Frontend UX hardening (2026-06-15)
 - Circle dashboard is now window-aware: it reads the contract's `windowClose`/`graceClose` and gates
@@ -94,9 +103,15 @@ mintable test tokens, since real Mento stablecoins are not faucetable on testnet
   Resolving it autonomously needs a `Circle.sol` change + mainnet redeploy (e.g. a "force-default a
   long-withheld round" trigger). The cure CTA is the near-term unblock.
 
-## Remaining for submission
+## Submission
+- **Published** via the Celo Builders Skill (`celo-onchain-agents`) for all three tracks
+  (best-agent, most-activity, 8004scan-rank), with the live demo URL, mainnet contract addresses,
+  the registration tweet as `socialLink`, and the **demo video** (`videoUrl`).
+- Registration tweet posted (quote-tweet @CeloDevs / @Celo with the ERC-8004 link).
+
+## Remaining (optional / post-deadline)
 1. Self Agent ID: the registration session is bootstrapped programmatically; the human passport
-   scan is pending (blocked on Self ID verification, region screenshot is the documented fallback).
+   scan is pending (blocked on Self ID verification; region screenshot is the documented fallback).
    `python -m scripts.self_poll` completes it once scanned.
-2. Post the registration tweet quote-tweeting @CeloDevs and @Celo with the ERC-8004 link.
-3. Submit via the Celo Builders Skill (`celo-onchain-agents`).
+2. Self proof-of-personhood live gating: the on-chain `ISelfVerifier` hook is in OPEN mode (one
+   wallet, one slot enforced via `usedHuman`); wiring a live Self verifier is roadmap.

@@ -14,7 +14,7 @@
     { "name": "DID", "endpoint": "did:pkh:eip155:42220:0x8974881E39a5eF62214929B6CaA6EC0C6e7D47c7", "version": "v1" },
     { "name": "email", "endpoint": "emmanuelolamiye@gmail.com" }
   ],
-  "provider": { "name": "AjoAI", "url": "https://github.com/AjoAI" },
+  "provider": { "name": "AjoAI", "url": "https://ajo-ai-tan.vercel.app" },
   "skills": [
     { "id": "rosca.create", "name": "Create circle", "description": "Deploy a savings circle with fixed contribution, period, and rotation." },
     { "id": "rosca.contribute", "name": "Collect contributions", "description": "Pull each member's periodic contribution in a Mento stablecoin." },

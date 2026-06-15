@@ -11,7 +11,7 @@ import { AskAgent } from "@/components/AskAgent";
 import { FaucetButton, useTokenBalance } from "@/components/Faucet";
 import { CureButton } from "@/components/CureButton";
 import { ConvertPanel } from "@/components/ConvertPanel";
-import { GasHint } from "@/components/GasHint";
+import { Sheet } from "@/components/Sheet";
 import { useCeloWrite, friendlyTxError } from "@/lib/tx";
 import { circleAbi, erc20Abi, STATE_NAMES } from "@/lib/abi";
 import { useCircle, useToken, useMembers, useMyStatus, useCircleActivity, type ActivityEvent } from "@/lib/circle";
@@ -169,6 +169,7 @@ function FormingView({ address, c, my, members, name, symbol, decimals, refetch 
   const { write, isPending, error } = useCeloWrite();
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [convertOpen, setConvertOpen] = useState(false);
   const { data: receipt } = useWaitForTransactionReceipt({ hash: txHash });
   const { data: allowance, refetch: refetchAllow } = useReadContract({
     address: c.token, abi: erc20Abi, functionName: "allowance",
@@ -238,7 +239,7 @@ function FormingView({ address, c, my, members, name, symbol, decimals, refetch 
           ) : (
             <>
               <p className="muted">You need {fmtAmount(c.deposit, symbol, decimals)} to post the deposit.</p>
-              <ConvertPanel needToken={c.token} needSymbol={symbol} needDecimals={decimals} need={c.deposit} onConverted={refetchBal} />
+              <button className="btn btn-ochre btn-block" onClick={() => setConvertOpen(true)}>Get {symbol} →</button>
             </>
           )
         ) : needsApproval ? (
@@ -246,8 +247,10 @@ function FormingView({ address, c, my, members, name, symbol, decimals, refetch 
         ) : (
           <button className="btn btn-ochre btn-block" disabled={busy} onClick={join}>{busy ? "Joining…" : "Join this circle"}</button>
         )}
-        <GasHint />
       </div>
+      <Sheet open={convertOpen} onClose={() => setConvertOpen(false)} title={`Get ${symbol}`}>
+        <ConvertPanel needToken={c.token} needSymbol={symbol} needDecimals={decimals} need={c.deposit} onConverted={() => { refetchBal(); setConvertOpen(false); }} />
+      </Sheet>
 
       <div style={{ marginTop: 16 }}>
         {members.map((m) => (
@@ -311,6 +314,7 @@ function PayTab({ address, c, symbol, decimals, my }: { address: `0x${string}`; 
     setTxHash(h); setTimeout(() => my.refetch(), 4000);
   }
   const busy = isPending || (!!txHash && !receipt);
+  const [convertOpen, setConvertOpen] = useState(false);
 
   if (c.state !== undefined && c.state !== 1) {
     return (
@@ -358,7 +362,7 @@ function PayTab({ address, c, symbol, decimals, my }: { address: `0x${string}`; 
   return (
     <>
       <div className="heading">{inGrace ? "Last chance this round" : "Your circle is counting on you"}</div>
-      <div className="subt">{inGrace ? `Window closed — paying now is late (small fee), but you keep your place · gas in ${symbol || "USDm"}` : `Pay your round · gas is covered in ${symbol || "USDm"}`}</div>
+      <div className="subt">{inGrace ? "Window closed — paying now is late (small fee), but you keep your place." : "Pay your contribution for this round."}</div>
       <div className="contrib"><div className="a"><small>{symbol}</small>{fmtAmount(c.contribution, "", decimals)}</div><div className="l">Your contribution</div></div>
       <Lrow k="From" v={`MiniPay · ${symbol}`} />
       <Lrow k="Goes to" v={`${short(c.recipient)}'s payout`} vColor="var(--clay-d)" />
@@ -373,7 +377,7 @@ function PayTab({ address, c, symbol, decimals, my }: { address: `0x${string}`; 
           ) : (
             <>
               <p className="muted">You need {fmtAmount(c.contribution, symbol, decimals)} to pay this round.</p>
-              <ConvertPanel needToken={c.token} needSymbol={symbol} needDecimals={decimals} need={c.contribution} onConverted={refetchBal} />
+              <button className="btn btn-ochre btn-block" onClick={() => setConvertOpen(true)}>Get {symbol} →</button>
             </>
           )
         ) : needsApproval ? (
@@ -381,8 +385,10 @@ function PayTab({ address, c, symbol, decimals, my }: { address: `0x${string}`; 
         ) : (
           <button className="btn btn-ochre btn-block" disabled={busy} onClick={pay}>{busy ? "Paying…" : inGrace ? `Pay ${fmtAmount(c.contribution, symbol, decimals)} · late` : `Pay ${fmtAmount(c.contribution, symbol, decimals)}`}</button>
         )}
-        <GasHint />
       </div>
+      <Sheet open={convertOpen} onClose={() => setConvertOpen(false)} title={`Get ${symbol}`}>
+        <ConvertPanel needToken={c.token} needSymbol={symbol} needDecimals={decimals} need={c.contribution} onConverted={() => { refetchBal(); setConvertOpen(false); }} />
+      </Sheet>
     </>
   );
 }

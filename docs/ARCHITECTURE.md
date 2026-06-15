@@ -10,7 +10,7 @@
 ```
 ┌──────────────────────────────────────────────────────────────────┐
 │                        MEMBERS (humans)                            │
-│                 phone-number identity, MiniPay wallet              │
+│                 MiniPay wallet · one wallet, one slot              │
 └───────────────┬────────────────────────────────┬─────────────────┘
                 │ tap (contribute / join / view)  │ NL questions
                 ▼                                  ▼
@@ -49,16 +49,19 @@ machine, writes ERC-8004 reputation, and routes idle funds to the yield adapter.
 
 **Agent runtime (`/agent`)**, autonomous loop + scheduler. It *reads* chain
 state, *decides* which legal transition is due, and *triggers* it (payout, park/
-withdraw idle funds, mark delinquent). Pays its own gas in a stablecoin (CIP-64).
-Hosts x402-gated premium skills. Runs the LLM only for NL understanding/replies.
+withdraw idle funds, mark delinquent). Pays its own gas in **native CELO** (web3.py
+can't sign CIP-64). Runs the LLM (DeepSeek) only for NL understanding/replies.
+x402-gated premium skills are planned.
 
-**MiniPay Mini App (`/miniapp`)**, the human surface. Phone onboarding, join+
-deposit, contribute, track, receive, and an **Ask** tab for NL Q&A (`/app/api/ask`,
-a TypeScript port of the agent's NL handler — same deterministic, money-safe facts,
-reads chain directly, never moves funds). Submits member txs directly via viem/wagmi.
+**MiniPay Mini App (`/miniapp`)**, the human surface. Wallet onboarding (one wallet,
+one slot), join+deposit, contribute, track, receive, a portable savings score, and an
+**Ask** tab for NL Q&A (`/app/api/ask`, a TypeScript port of the agent's NL handler —
+same deterministic, money-safe facts, reads chain directly, never moves funds). Also
+serves a read-only **MCP server** (`/api/mcp`) so other agents can query AjoAI. Submits
+member txs directly via viem/wagmi.
 
-**External Celo infra**, Mento (local stables), Self (personhood + agent ID),
-ERC-8004 (portable reputation), a yield venue, MiniPay (distribution).
+**External Celo infra**, Mento (local stables), Self (personhood + agent ID; verifier
+in OPEN mode today), ERC-8004 (portable reputation), a yield venue, MiniPay (distribution).
 
 ---
 
@@ -114,7 +117,7 @@ worst trigger *due* transitions early/late, not steal funds.
 |---|---|
 | Agent offline | Rounds are time-based on-chain; members can still contribute; payout can be triggered by any allowed caller once due (document who). |
 | Yield venue unavailable | Stub via `SIMULATE_YIELD`; circle logic unaffected. |
-| Self testnet unsupported | `SIMULATE_SELF` for dev; real on mainnet. |
+| Self verifier not wired | `ISelfVerifier` in OPEN mode on both chains (`SIMULATE_SELF` for dev); **one wallet, one slot** still enforced on-chain via `usedHuman`. Live Self gating is roadmap. |
 | Recipient reverts on payout | Pull-over-push; recipient claims; round still advances. |
 | Tx not yet final | Agent treats only confirmed txs as settled (§ finality). |
 | MiniPay constraint changed | Caught in Phase 0 / VERIFICATION.md; frontend adapts. |

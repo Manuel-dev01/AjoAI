@@ -31,9 +31,14 @@ Config is read from the repo `.env` + `config/addresses.<chain>.json` + `config/
 python -m src.main info                 # config + connectivity
 python -m src.main status   [CIRCLE]    # perceive a circle + show planned actions
 python -m src.main run-once [CIRCLE]    # one perceive→reason→act→settle pass
-python -m src.main run      [CIRCLE] [INTERVAL_SECONDS]   # scheduled loop
+python -m src.main run      [CIRCLE] [INTERVAL_SECONDS]   # scheduled loop, one circle
+python -m src.main serve-all            # one sweep over ALL factory circles
+python -m src.main run-all  [SECONDS]   # scheduled sweep over ALL circles (hosted default)
+python -m scripts.register_agent        # ERC-8004 registration (AJOAI_AGENT_URI=<url>)
 ```
-`CIRCLE` defaults to `deployments.demoCircle` in the chain's address config.
+`CIRCLE` defaults to `deployments.demoCircle` in the chain's address config. The hosted Railway
+worker runs `run-all 30` against `CHAIN=mainnet`, so every circle created in the UI rotates
+autonomously (each circle bakes `agent = factory.agent`). See `DEPLOY.md`.
 
 ## Tests
 ```bash
@@ -48,7 +53,8 @@ contract's enforced rules: the agent never plans an action the contract would re
   `src/nl.py` is the source of truth for this logic; `miniapp/lib/nl.ts` is a TypeScript
   port that powers the MiniPay app's **Ask** tab (`miniapp/app/app/api/ask/route.ts`),
   kept in sync by hand and cross-referenced in both files.
-- **Gas in stablecoin** via CIP-64 `feeCurrency` is the target (CLAUDE.md §8); the agent
-  holds no CELO in the steady state.
+- **Gas:** the agent pays in **native CELO** — web3.py / eth-account cannot sign Celo's CIP-64
+  `feeCurrency` transactions (CLAUDE.md §6), so the hosted worker keeps a small CELO float and a
+  `low_gas` warning fires below 0.05 CELO. Only the MiniPay frontend pays gas in a stablecoin (USDm).
 - **Loud simulation** (`SIMULATE_*` flags): simulated subsystems log a `SIMULATED` banner
  , never silently faked (CLAUDE.md §1.9).

@@ -11,6 +11,8 @@ collecting contributions, executing the payout rotation, parking idle funds,
 enforcing defaults, and turning a completed circle into a portable savings-credit
 score.
 
+**[▶ Demo video](https://youtube.com/shorts/YYtcAh31yNA)**  ·  **[Live app](https://ajo-ai-tan.vercel.app/app)**  ·  **[Agent on 8004scan — agentId 9339](https://8004scan.io/agents/celo/9339)**  ·  **[Mainnet circle](https://celoscan.io/address/0x4D03D887c3bB293623A8aF842DB80B4680a5E11F)**
+
 ## How it works
 A rotating savings circle: a group each contributes a fixed amount every period,
 and each period one member receives the whole pot, until everyone has received
@@ -107,8 +109,8 @@ The agent runs as an always-on Railway worker (`run-all 30`) sweeping the mainne
 | Path | What |
 |---|---|
 | `/contracts` | Solidity (Foundry), `Circle`, `CircleFactory`, adapters; **25 tests** (worked example, adversarial, invariants) |
-| `/agent` | Python runtime (perceive→reason→act→settle), NL handler, ERC-8004 registration; **13 tests** |
-| `/miniapp` | MiniPay Mini App frontend (viem/wagmi) |
+| `/agent` | Python runtime (perceive→reason→act→settle), NL handler, ERC-8004 registration; **18 tests** |
+| `/miniapp` | MiniPay Mini App (viem/wagmi): create / join / pay / activity / score / Ask, plus a read-only **MCP server** (`/api/mcp`) so other agents can query AjoAI |
 | `/config` | Per-chain addresses + ABIs + agent card |
 
 ## Quick start
@@ -128,8 +130,14 @@ Config + secrets: copy `env.example` → `.env`. Addresses are read from
 ## Model / framework / tools
 - **Contracts:** Solidity 0.8.28 + Foundry + OpenZeppelin v5.
 - **Agent:** Python (web3.py), perceive→reason→act→settle; APScheduler; structlog.
-- **LLM (NL handler only, never moves money):** Claude (`claude-haiku-4-5`).
-- **Frontend:** Celo Composer MiniPay template + viem/wagmi.
+- **LLM (NL handler only, never moves money):** DeepSeek (`deepseek-chat`, OpenAI-compatible),
+  with a deterministic chain-derived fallback when no key is set — so a hallucination can never
+  authorize a transfer.
+- **Frontend:** Next.js (App Router) + viem/wagmi, MiniPay-native (CIP-64 gas in USDm).
+- **Agent interop:** a read-only MCP server (`miniapp/app/api/mcp`) + an ERC-8004 agent card at
+  `/.well-known/agent-card.json`.
+
+> Note: the build agent (Claude Code, Opus 4.8) wrote the code; the **runtime** NL model is DeepSeek.
 
 ## Status
 See `STATUS.md` for the current deployment state, test coverage, and remaining work.
