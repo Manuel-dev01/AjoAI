@@ -29,12 +29,13 @@ const TEST_TOKEN_LIST: TokenInfo[] = [
   { sym: "NGNm", addr: "0x435917C839dFE442255B2E4D717DF7de1601E6f7", decimals: 18 },
   { sym: "USDm", addr: "0x3019C211F3B664e18A58213d20482D4E658A7527", decimals: 18 },
 ];
-// USDm FIRST: it's the only MiniPay gas currency AND is 1:1 swappable from USDT/USDC in MiniPay's
-// native Pockets — so it's the lowest-friction default for new circles. NGNm is a real FX swap
-// (Mento Broker), not in Pockets, so it's last.
+// USDT FIRST (the default): it's MiniPay's primary holding, so a member joins a USDT circle with
+// ZERO swaps — and gas is auto-covered by MiniPay's background swap, so no USDm balance is needed
+// either. USDm/USDC next (1:1 from USDT via native Pockets). NGNm is a real FX swap (Mento Broker),
+// not in Pockets, so it's last.
 const MAINNET_TOKEN_LIST: TokenInfo[] = [
-  { sym: "USDm", addr: "0x765DE816845861e75A25fCA122bb6898B8B1282a", decimals: 18 },
   { sym: "USDT", addr: "0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e", decimals: 6 },
+  { sym: "USDm", addr: "0x765DE816845861e75A25fCA122bb6898B8B1282a", decimals: 18 },
   { sym: "USDC", addr: "0xcebA9300f2b948710d2653dD7B07f33A8B32118C", decimals: 6 },
   { sym: "NGNm", addr: "0xE2702Bd97ee33c88c8f6f92DA3B733608aa76F71", decimals: 18 },
 ];

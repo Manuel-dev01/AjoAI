@@ -51,6 +51,8 @@ Thumbs.db
 .agents/
 skills-lock.json
 TESTING.md
+.env.feedback
+agent/scripts/give_feedback.py
 
 CLAUDE.md
 docs/DEMO.md

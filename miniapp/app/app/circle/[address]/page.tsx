@@ -134,16 +134,47 @@ function CircleView({ address }: { address: `0x${string}` }) {
           </>
         )}
 
-        {tab === "circle" && !forming && !active && (
+        {/* Dissolved (deleted in Forming) → simple refund note. */}
+        {tab === "circle" && c.state === 4 && (
           <div className="empty">
             <RingMark variant="full" />
-            <div style={{ fontWeight: 700, marginTop: 4 }}>Circle {STATE_NAMES[c.state ?? 0]}</div>
-            <div className="muted" style={{ marginTop: 4 }}>
-              {c.state === 4
-                ? "This circle was deleted before it started. All deposits were refunded."
-                : "This circle has finished its rounds. Deposits returned; reputation written."}
-            </div>
+            <div style={{ fontWeight: 700, marginTop: 4 }}>Circle dissolved</div>
+            <div className="muted" style={{ marginTop: 4 }}>This circle was deleted before it started. All deposits were refunded.</div>
           </div>
+        )}
+
+        {/* Completed / Defaulted → a real recap of the finished rotation, not a blank page. */}
+        {tab === "circle" && (c.state === 2 || c.state === 3) && (
+          <>
+            <div className="dash-top" style={c.state === 3 ? { background: "var(--ink)" } : undefined}>
+              <RingMark variant="full" />
+              <div className="rnd">{c.state === 2 ? "Rotation complete" : "Circle closed early"}</div>
+              <div className="nx">
+                {c.state === 2
+                  ? `All ${c.slots ?? "…"} members received the pot once · reconciled on-chain`
+                  : "Remaining funds distributed pro-rata to members who hadn’t received"}
+              </div>
+            </div>
+
+            <Lrow k="Payouts made" v={`${c.roundsPaid?.toString() ?? "…"} / ${c.slots ?? "…"}`} />
+            <Lrow k="Pot each round" v={fmtAmount(c.pot, symbol, decimals)} />
+            <Lrow k="Contribution" v={fmtAmount(c.contribution, symbol, decimals)} />
+
+            <div style={{ marginTop: 14 }}>
+              {members.map((m) => (
+                <div className="mrow" key={m.address}>
+                  <Avatar addr={m.address} size={28} />
+                  <span className="nm">{m.address.toLowerCase() === my.me?.toLowerCase() ? "You" : short(m.address)}</span>
+                  <Pill kind={m.hasReceived ? "paid" : "due"}>{m.hasReceived ? "Received ✓" : "Pro-rata"}</Pill>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ marginTop: 16, display: "grid", gap: 9 }}>
+              <button className="btn btn-block" onClick={() => setTab("activity")}>See the on-chain activity →</button>
+              <a className="txlink" href={explorerAddr(address)} target="_blank" rel="noreferrer" style={{ textAlign: "center", display: "block", padding: "4px 0" }}>View the circle on {EXPLORER_NAME} ↗</a>
+            </div>
+          </>
         )}
 
         {tab === "pay" && (
