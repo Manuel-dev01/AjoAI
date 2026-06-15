@@ -163,9 +163,9 @@ function Dashboard({ address, name, onEdit }: { address: `0x${string}`; name: st
           <div className="empty">
             <RingMark variant="full" />
             <div style={{ fontWeight: 700, marginTop: 4 }}>No circles yet</div>
-            <div className="muted" style={{ marginTop: 4 }}>Start one, join with a code, or peek at the live demo circle.</div>
+            <div className="muted" style={{ marginTop: 4 }}>Start one, join with a code, or see a completed demo rotation (real on-chain payouts).</div>
             <Link href={`/app/circle/${CONTRACTS.demoCircle}`} className="btn-ghost" style={{ display: "inline-block", marginTop: 14 }}>
-              View the demo circle →
+              See the demo rotation →
             </Link>
           </div>
         )}

@@ -27,10 +27,9 @@ export function ConvertPanel({
   if (isStable) {
     return (
       <div className="banner" style={{ background: "var(--cream-d)", color: "var(--ink)", borderColor: "var(--ink)" }}>
-        <p style={{ margin: "0 0 6px", fontWeight: 700 }}>Top up {needSymbol} in MiniPay</p>
+        <p style={{ margin: "0 0 6px", fontWeight: 700 }}>Get {needSymbol} in MiniPay</p>
         <p className="muted" style={{ margin: 0, fontSize: 13 }}>
-          Open <b>Pockets</b> in your MiniPay wallet and swap USDT/USDC → {needSymbol} (1:1), then come
-          back and join.
+          One tap in MiniPay <b>Pockets</b>: swap USDT → {needSymbol}. Instant, 1:1, no fee — then come back and join.
         </p>
       </div>
     );
@@ -50,6 +49,7 @@ function MentoSwap({
   const [usdmIn, setUsdmIn] = useState<bigint | undefined>();
   const [loading, setLoading] = useState(true);
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>();
+  const [phase, setPhase] = useState<"idle" | "approving" | "swapping">("idle");
   const { data: receipt } = useWaitForTransactionReceipt({ hash: txHash });
   const { balance: usdmBal, refetch: refetchUsdm } = useTokenBalance(usdm);
   const { data: allowance, refetch: refetchAllow } = useReadContract({
@@ -79,7 +79,13 @@ function MentoSwap({
     return () => { alive = false; };
   }, [usdm, needToken, need]);
 
-  useEffect(() => { if (receipt) { refetchUsdm(); onConverted(); } }, [receipt, refetchUsdm, onConverted]);
+  // Only the SWAP receipt should finish/close the sheet. The APPROVE receipt just refreshes the
+  // allowance so the Swap button appears (shared txHash would otherwise close the sheet after approve).
+  useEffect(() => {
+    if (!receipt) return;
+    if (phase === "approving") { refetchAllow(); setPhase("idle"); }
+    else if (phase === "swapping") { refetchUsdm(); onConverted(); setPhase("idle"); }
+  }, [receipt, phase, refetchAllow, refetchUsdm, onConverted]);
 
   const busy = isPending || (!!txHash && !receipt);
   const lowUsdm = usdmIn !== undefined && (usdmBal === undefined || usdmBal < usdmIn);
@@ -87,11 +93,13 @@ function MentoSwap({
 
   async function approve() {
     if (!usdm || usdmIn === undefined) return;
+    setPhase("approving");
     const h = await write({ address: usdm, abi: erc20Abi, functionName: "approve", args: [MENTO_BROKER, usdmIn], gas: 120_000n });
-    setTxHash(h); setTimeout(() => refetchAllow(), 4000);
+    setTxHash(h);
   }
   async function swap() {
     if (!ex || !usdm || !needToken || usdmIn === undefined || need === undefined) return;
+    setPhase("swapping");
     // amountOutMin = need: deliver at least the deposit amount, or revert cleanly (never under-fill).
     const h = await write({
       address: MENTO_BROKER, abi: mentoBrokerAbi, functionName: "swapIn",
@@ -119,7 +127,7 @@ function MentoSwap({
       {error && <p className="banner">{friendlyTxError(error)}</p>}
       {lowUsdm ? (
         <p className="muted" style={{ fontSize: 13 }}>
-          You need about {fmtCompact(usdmIn, "USDm", 18)} to swap. Get USDm in your MiniPay <b>Pockets</b> (USDT→USDm), then reopen this.
+          First get ~{fmtCompact(usdmIn, "USDm", 18)} in MiniPay <b>Pockets</b> (swap USDT → USDm, instant &amp; free), then reopen this to finish the swap to {needSymbol}.
         </p>
       ) : needsApproval ? (
         <button className="btn btn-block" disabled={busy} onClick={approve}>{busy ? "Approving…" : `1. Approve ${fmtCompact(usdmIn, "USDm", 18)}`}</button>
