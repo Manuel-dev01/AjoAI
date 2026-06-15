@@ -284,19 +284,39 @@ class Seeder:
         return summary
 
 
-def main() -> None:
-    mode = sys.argv[1] if len(sys.argv) > 1 else "run"
+def seed_once(log=None) -> dict:
+    """Operate ONE complete rotating-savings circle end to end and return its summary.
+
+    The agent creates a small self-funded circle in real USD₮, funds a set of reusable participant
+    wallets, then drives every contribution, payout and the finalize itself (the economic-agency
+    proof, CLAUDE.md §1.1). All USD₮ is swept back at the end, so only CELO gas is spent. Member
+    wallets persist across calls; the per-circle state is cleared on a clean finish so the next
+    call operates a fresh circle. Safe to invoke on a schedule from the hosted worker.
+    """
     sd = Seeder()
-    if mode == "sweep":
-        sd.sweep()
-        return
+    if log is not None:
+        sd.log = log
     agent_usdt_before = sd.usdt(sd.agent.address)
     sd.ensure_members()
     circle_addr = sd.ensure_circle()
     sd.fund_and_join(circle_addr)
     sd.run_rotation(circle_addr)
     swept = sd.sweep()
-    sd.report(circle_addr, agent_usdt_before, swept)
+    summary = sd.report(circle_addr, agent_usdt_before, swept)
+    # Clear per-circle state on success so a subsequent call operates a fresh circle (reuse keys).
+    # A crash mid-cycle leaves the state intact, so a retry resumes the same circle.
+    for k in ("circle", "createTx", "payouts", "finalizeTx"):
+        sd.st.pop(k, None)
+    _save_state(sd.st)
+    return summary
+
+
+def main() -> None:
+    mode = sys.argv[1] if len(sys.argv) > 1 else "run"
+    if mode == "sweep":
+        Seeder().sweep()
+        return
+    seed_once()
 
 
 if __name__ == "__main__":

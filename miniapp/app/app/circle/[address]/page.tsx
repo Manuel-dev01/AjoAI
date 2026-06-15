@@ -170,6 +170,11 @@ function FormingView({ address, c, my, members, name, symbol, decimals, refetch 
       <Lrow k="Members" v={`${c.membersLength?.toString() ?? "…"} / ${c.slots ?? "…"}`} />
       <Lrow k="Contribution" v={fmtAmount(c.contribution, symbol, decimals)} />
       <Lrow k="Security deposit" v={fmtAmount(c.deposit, symbol, decimals)} />
+      {isOrganizer && my.isMember === false && !full && (
+        <div className="banner" style={{ background: "var(--ochre)", color: "var(--ink)", borderColor: "var(--ink)", marginTop: 12 }}>
+          You created this circle. Be the first member, join below to take your slot, then invite the rest.
+        </div>
+      )}
       {error && <p className="banner">{error.message.slice(0, 140)}</p>}
 
       <div style={{ marginTop: 14, display: "grid", gap: 9 }}>

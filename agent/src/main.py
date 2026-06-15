@@ -14,8 +14,11 @@ so a circle created from the MiniPay app rotates autonomously without being name
 
 from __future__ import annotations
 
+import os
 import sys
+from datetime import datetime, timedelta
 
+from apscheduler.executors.pool import ThreadPoolExecutor
 from apscheduler.schedulers.blocking import BlockingScheduler
 
 from .chain import ChainClient
@@ -62,6 +65,44 @@ def _sweep(agent, chain, log) -> None:
             log.warning("serve_all_error", circle=addr, error=str(e))
 
 
+def _demo_rotation(chain, log) -> None:
+    """Operate one full self-funded circle end to end (real USD₮, recovered each cycle; only CELO
+    gas is spent). Runs on the SAME single worker thread as the sweep, so the two never send txs
+    concurrently on the shared agent key. Any failure is logged, never fatal."""
+    if chain.gas_balance_wei() < LOW_GAS_WEI:
+        log.warning("demo_rotation_skip_low_gas", balanceCELO=round(chain.gas_balance_wei() / 1e18, 4))
+        return
+    try:
+        from scripts.mainnet_seed import seed_once
+        log.info("demo_rotation_start")
+        summary = seed_once(log=log)
+        log.info("demo_rotation_done", circle=summary.get("circle"), reconcile=summary.get("reconcile"))
+    except Exception as e:  # noqa: BLE001 — a failed rotation must never crash the worker
+        log.warning("demo_rotation_error", error=str(e))
+
+
+def _schedule_demo_rotation(sched, settings, chain, log) -> None:
+    """If enabled (mainnet + AJOAI_DEMO_ROTATION_HOURS > 0), run one live demonstration rotation
+    every N hours so the agent's autonomous behaviour is continuously exercised, not only when an
+    external circle happens to exist."""
+    hours = float(os.getenv("AJOAI_DEMO_ROTATION_HOURS", "0"))
+    if hours <= 0 or settings.chain != "mainnet":
+        return
+    log.info("demo_rotation_enabled", everyHours=hours)
+    sched.add_job(
+        lambda: _demo_rotation(chain, log),
+        "interval",
+        hours=hours,
+        id="ajoai-demo-rotation",
+        max_instances=1,
+        coalesce=True,
+        # Fire even if the single worker thread is briefly busy with a sweep at the scheduled
+        # instant (APScheduler's default 1s grace would otherwise drop the run).
+        misfire_grace_time=3600,
+        next_run_time=datetime.now() + timedelta(seconds=90),
+    )
+
+
 def main() -> None:
     settings = load_settings()
     configure(settings.log_level)
@@ -93,7 +134,9 @@ def main() -> None:
         interval = int(sys.argv[2]) if len(sys.argv) > 2 else 30
         agent = Agent(settings, chain)
         log.info("serve_all_start", intervalSeconds=interval, factory=settings.factory)
-        sched = BlockingScheduler()
+        # One worker thread so every job serialises and never sends two txs concurrently on the
+        # shared agent key (nonce-safe). All jobs are single-instance.
+        sched = BlockingScheduler(executors={"default": ThreadPoolExecutor(1)})
         sched.add_job(
             lambda: _sweep(agent, chain, log),
             "interval",
@@ -102,6 +145,7 @@ def main() -> None:
             max_instances=1,
             coalesce=True,
         )
+        _schedule_demo_rotation(sched, settings, chain, log)
         try:
             sched.start()
         except (KeyboardInterrupt, SystemExit):
