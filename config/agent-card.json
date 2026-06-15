@@ -3,15 +3,15 @@
   "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
   "name": "AjoAI",
   "description": "Autonomous rotating-savings (ajo/esusu/chama/stokvel) agent on Celo. Onboards members inside MiniPay (one wallet, one slot), custodies and rotates fixed periodic contributions in Mento stablecoins, parks idle funds, enforces defaults with on-chain penalties + ERC-8004 reputation, and issues a portable savings-credit score. Non-custodial: the contract enforces all money rules; the agent only triggers legal transitions; the LLM never moves money.",
-  "image": "https://ajo-ai-tan.vercel.app/icon.svg",
+  "image": "https://ajo-ai-tan.vercel.app/icon.png",
   "url": "https://ajo-ai-tan.vercel.app",
   "version": "0.1.0",
   "active": true,
   "x402Support": false,
   "services": [
     { "name": "web", "endpoint": "https://ajo-ai-tan.vercel.app" },
-    { "name": "A2A", "endpoint": "https://ajo-ai-tan.vercel.app/.well-known/agent-card.json", "version": "0.3.0" },
-    { "name": "MCP", "endpoint": "https://ajo-ai-tan.vercel.app/api/mcp", "version": "2025-06-18" },
+    { "name": "A2A", "endpoint": "https://ajo-ai-tan.vercel.app/.well-known/agent-card.json", "version": "0.3.0", "skills": ["rosca.create", "rosca.contribute", "rosca.payout", "rosca.default-recovery", "rosca.reputation", "nl.query"] },
+    { "name": "MCP", "endpoint": "https://ajo-ai-tan.vercel.app/api/mcp", "version": "2025-06-18", "mcpTools": ["get_circle", "get_score", "ask", "list_circles"] },
     { "name": "DID", "endpoint": "did:pkh:eip155:42220:0x8974881E39a5eF62214929B6CaA6EC0C6e7D47c7", "version": "v1" },
     { "name": "email", "endpoint": "emmanuelolamiye@gmail.com" }
   ],
@@ -25,8 +25,8 @@
     { "id": "nl.query", "name": "Natural-language member Q&A", "description": "Answer member questions in English, Nigerian Pidgin, and Swahili (explains chain state; never authorizes money)." }
   ],
   "registrations": [
-    { "chainId": 42220, "agentId": 9339, "identityRegistry": "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432", "reputationRegistry": "0x8004BAa17C55a88189AE136b182e5fdA19dE9b63" },
-    { "chainId": 11142220, "agentId": 307, "identityRegistry": "0x8004A818BFB912233c491871b3d84c89A494BD9e", "reputationRegistry": "0x8004B663056A597Dffe9eCcC1965A193B7388713" }
+    { "agentId": 9339, "agentRegistry": "eip155:42220:0x8004A169FB4a3325136EB29fA0ceB6D2e539a432" },
+    { "agentId": 307, "agentRegistry": "eip155:11142220:0x8004A818BFB912233c491871b3d84c89A494BD9e" }
   ],
   "supportedTrust": ["reputation"],
   "selfAgentId": null,
