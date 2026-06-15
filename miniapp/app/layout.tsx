@@ -16,9 +16,19 @@ const sans = Hanken_Grotesk({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://ajo-ai-tan.vercel.app"),
   title: "AjoAI | Save like your village always has",
   description:
     "A rotating savings circle (ajo/esusu/chama/stokvel) run by an autonomous agent, inside MiniPay on Celo.",
+  // Browser-tab + home-screen icon = the RingMark (Circle & Baton). SVG for crisp tabs, PNG fallback.
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/icon.png", type: "image/png", sizes: "512x512" },
+    ],
+    shortcut: "/icon.png",
+    apple: "/icon.png",
+  },
 };
 
 export const viewport: Viewport = {

@@ -34,6 +34,25 @@ export function fmtAmount(v: bigint | undefined, symbol: string, decimals = 18):
   return `${symbol} ${amount(v, decimals)}`;
 }
 
+// Compact display for swap/quote amounts: ≤ maxFrac fractional digits, trailing zeros trimmed,
+// a "<0.0001" floor for dust, thousands-grouped. Use for approximate figures (e.g. a Mento quote);
+// keep `amount`/`fmtAmount` for exact contribution/deposit values.
+export function amountCompact(v: bigint | undefined, decimals = 18, maxFrac = 4): string {
+  if (v === undefined) return "…";
+  if (v === 0n) return "0";
+  const num = Number(formatUnits(v, decimals));
+  const floor = 1 / 10 ** maxFrac;
+  if (num > 0 && num < floor) return `<${floor}`;
+  const [whole, frac = ""] = num.toFixed(maxFrac).split(".");
+  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  const f = frac.replace(/0+$/, "");
+  return f ? `${grouped}.${f}` : grouped;
+}
+
+export function fmtCompact(v: bigint | undefined, symbol: string, decimals = 18): string {
+  return `${symbol} ${amountCompact(v, decimals)}`;
+}
+
 // seconds-from-epoch (bigint) → short relative label for "due"/"closes" copy.
 export function whenLabel(ts?: bigint): string {
   if (!ts || ts === 0n) return "—";

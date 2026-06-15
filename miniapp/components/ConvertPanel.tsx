@@ -6,14 +6,14 @@ import { type Address } from "viem";
 import { useCeloWrite, friendlyTxError } from "@/lib/tx";
 import { erc20Abi } from "@/lib/abi";
 import { TOKENS, POCKETS_STABLES, MENTO_BROKER } from "@/lib/chain";
-import { fmtAmount } from "@/lib/format";
+import { fmtAmount, fmtCompact } from "@/lib/format";
 import { useTokenBalance } from "@/components/Faucet";
-import { findExchange, quoteAmountIn, minOut, mentoBrokerAbi, type MentoExchange } from "@/lib/mento";
+import { findExchange, quoteAmountIn, mentoBrokerAbi, type MentoExchange } from "@/lib/mento";
 
-// Shown (mainnet only) when a member lacks the circle's token to join/contribute. Two paths:
-//  • Stable trio (USDm/USDT/USDC): MiniPay Pockets does a native 1:1 swap AND is the only way to
-//    bootstrap the first USDm for gas — so we guide to Pockets rather than a dApp swap.
-//  • NGNm (real FX): an in-app Mento Broker swap USDm→NGNm (needs a little USDm for gas already).
+// Rendered inside the convert bottom-sheet when a member lacks the circle's token. Two paths:
+//  • Stable trio (USDm/USDT/USDC): MiniPay Pockets does a native 1:1 swap — guide there.
+//  • NGNm (real FX): an in-app Mento Broker swap USDm→NGNm (USDm here is swap INPUT to fund the
+//    deposit — NOT gas; MiniPay covers gas automatically via its own background swap).
 export function ConvertPanel({
   needToken, needSymbol, needDecimals, need, onConverted,
 }: {
@@ -27,10 +27,10 @@ export function ConvertPanel({
   if (isStable) {
     return (
       <div className="banner" style={{ background: "var(--cream-d)", color: "var(--ink)", borderColor: "var(--ink)" }}>
-        <p style={{ margin: "0 0 6px", fontWeight: 700 }}>Top up {needSymbol} in your MiniPay wallet</p>
+        <p style={{ margin: "0 0 6px", fontWeight: 700 }}>Top up {needSymbol} in MiniPay</p>
         <p className="muted" style={{ margin: 0, fontSize: 13 }}>
-          Open <b>Pockets</b> in MiniPay and swap your USDT/USDC → {needSymbol} (1:1, no gas needed).
-          {needSymbol === "USDm" ? " You also need a little USDm to pay gas." : ""} Then come back and join.
+          Open <b>Pockets</b> in your MiniPay wallet and swap USDT/USDC → {needSymbol} (1:1), then come
+          back and join.
         </p>
       </div>
     );
@@ -58,7 +58,8 @@ function MentoSwap({
     query: { enabled: Boolean(me && usdm) },
   });
 
-  // Discover the USDm↔needToken exchange and quote the USDm needed for `need` out.
+  // Discover the USDm↔needToken exchange and quote the USDm needed for `need` out (+2% headroom so
+  // normal slippage still clears the amountOutMin=need floor below).
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -70,7 +71,7 @@ function MentoSwap({
       if (found) {
         try {
           const inAmt = await quoteAmountIn(found, usdm, needToken, need);
-          if (alive) setUsdmIn((inAmt * 102n) / 100n); // +2% headroom for slippage/price drift
+          if (alive) setUsdmIn((inAmt * 102n) / 100n);
         } catch { if (alive) setUsdmIn(undefined); }
       }
       if (alive) setLoading(false);
@@ -91,14 +92,15 @@ function MentoSwap({
   }
   async function swap() {
     if (!ex || !usdm || !needToken || usdmIn === undefined || need === undefined) return;
+    // amountOutMin = need: deliver at least the deposit amount, or revert cleanly (never under-fill).
     const h = await write({
       address: MENTO_BROKER, abi: mentoBrokerAbi, functionName: "swapIn",
-      args: [ex.provider, ex.id, usdm, needToken, usdmIn, minOut(need)], gas: 600_000n,
+      args: [ex.provider, ex.id, usdm, needToken, usdmIn, need], gas: 600_000n,
     });
     setTxHash(h);
   }
 
-  if (loading) return <p className="muted">Checking swap route…</p>;
+  if (loading) return <p className="muted">Finding the best swap route…</p>;
   if (!ex || usdmIn === undefined) {
     return (
       <div className="banner" style={{ background: "var(--cream-d)", color: "var(--ink)", borderColor: "var(--ink)" }}>
@@ -109,15 +111,18 @@ function MentoSwap({
     );
   }
   return (
-    <div style={{ marginTop: 6, display: "grid", gap: 9 }}>
-      <p className="muted" style={{ fontSize: 13 }}>
-        Swap ≈ {fmtAmount(usdmIn, "USDm", 18)} → {fmtAmount(need, needSymbol, needDecimals)} via Mento.
-      </p>
+    <div style={{ display: "grid", gap: 10 }}>
+      <div className="contrib" style={{ background: "var(--cream-d)", color: "var(--ink)" }}>
+        <div className="a" style={{ fontSize: 22 }}>{fmtCompact(usdmIn, "USDm", 18)} → {fmtAmount(need, needSymbol, needDecimals)}</div>
+        <div className="l">via Mento · rate updates live</div>
+      </div>
       {error && <p className="banner">{friendlyTxError(error)}</p>}
       {lowUsdm ? (
-        <p className="muted">You need ≈ {fmtAmount(usdmIn, "USDm", 18)}. Top up USDm via your MiniPay Pockets (swap USDT→USDm), then retry.</p>
+        <p className="muted" style={{ fontSize: 13 }}>
+          You need about {fmtCompact(usdmIn, "USDm", 18)} to swap. Get USDm in your MiniPay <b>Pockets</b> (USDT→USDm), then reopen this.
+        </p>
       ) : needsApproval ? (
-        <button className="btn btn-block" disabled={busy} onClick={approve}>{busy ? "Approving…" : `1. Approve ${fmtAmount(usdmIn, "USDm", 18)}`}</button>
+        <button className="btn btn-block" disabled={busy} onClick={approve}>{busy ? "Approving…" : `1. Approve ${fmtCompact(usdmIn, "USDm", 18)}`}</button>
       ) : (
         <button className="btn btn-ochre btn-block" disabled={busy} onClick={swap}>{busy ? "Swapping…" : `Swap to ${needSymbol}`}</button>
       )}

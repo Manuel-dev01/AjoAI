@@ -26,7 +26,7 @@ export function friendlyTxError(err?: { message?: string } | null): string | nul
   if (/WindowNotElapsed/.test(m)) return "Too early — the contribution window hasn't closed yet.";
   if (/NotDelinquent/.test(m)) return "You're in good standing — nothing to restore.";
   if (/NotMember/.test(m)) return "You're not a member of this circle.";
-  if (/insufficient funds|gas required|fee|feeCurrency/i.test(m)) return "Couldn't pay gas — keep a little USDm in your wallet for fees.";
+  if (/insufficient funds|gas required|fee|feeCurrency/i.test(m)) return "Couldn't cover the network fee right now — please try again in a moment.";
   if (/eth_estimateGas/.test(m)) return "Couldn't simulate the transaction — it may no longer be valid. Refresh and try again.";
   if (/User rejected|denied|rejected the request/i.test(m)) return "You cancelled the transaction.";
   return m.slice(0, 140);
