@@ -13,6 +13,14 @@ const reputation = CONTRACTS.reputationLedger as Address;
 const PROTOCOL_VERSION = "2025-06-18";
 const SERVER = { name: "AjoAI", version: "0.1.0" };
 
+// Open CORS so any agent/scanner (incl. browser-based health probes) can reach this endpoint.
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Access-Control-Max-Age": "86400",
+} as const;
+
 const client = () => createPublicClient({ chain: activeChain, transport: http() });
 
 const TOOLS = [
@@ -163,14 +171,18 @@ async function callTool(name: string, args: Record<string, unknown>): Promise<{ 
 
 type RpcReq = { jsonrpc?: string; id?: number | string | null; method?: string; params?: Record<string, unknown> };
 
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: CORS });
+}
+
 export async function POST(req: Request) {
   let body: RpcReq;
-  try { body = await req.json(); } catch { return NextResponse.json({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "Parse error" } }, { status: 400 }); }
+  try { body = await req.json(); } catch { return NextResponse.json({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "Parse error" } }, { status: 400, headers: CORS }); }
   const { id, method, params } = body;
-  const ok = (result: unknown) => NextResponse.json({ jsonrpc: "2.0", id: id ?? null, result });
+  const ok = (result: unknown) => NextResponse.json({ jsonrpc: "2.0", id: id ?? null, result }, { headers: CORS });
 
   // Notifications (no id) expect no response body.
-  if (id === undefined && typeof method === "string" && method.startsWith("notifications/")) return new NextResponse(null, { status: 202 });
+  if (id === undefined && typeof method === "string" && method.startsWith("notifications/")) return new NextResponse(null, { status: 202, headers: CORS });
 
   switch (method) {
     case "initialize":
@@ -186,11 +198,11 @@ export async function POST(req: Request) {
       return ok({ content: [{ type: "text", text }], isError: Boolean(isError) });
     }
     default:
-      return NextResponse.json({ jsonrpc: "2.0", id: id ?? null, error: { code: -32601, message: `Method not found: ${method}` } }, { status: 200 });
+      return NextResponse.json({ jsonrpc: "2.0", id: id ?? null, error: { code: -32601, message: `Method not found: ${method}` } }, { status: 200, headers: CORS });
   }
 }
 
 export async function GET() {
   // Lightweight discovery for humans / health checks (MCP itself uses POST JSON-RPC).
-  return NextResponse.json({ name: SERVER.name, protocol: "mcp", protocolVersion: PROTOCOL_VERSION, transport: "streamable-http", tools: TOOLS.map((t) => t.name) });
+  return NextResponse.json({ name: SERVER.name, protocol: "mcp", protocolVersion: PROTOCOL_VERSION, transport: "streamable-http", tools: TOOLS.map((t) => t.name) }, { headers: CORS });
 }
