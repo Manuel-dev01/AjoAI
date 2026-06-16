@@ -11,6 +11,15 @@ const BASE = "https://ajo-ai-tan.vercel.app";
 const PROTOCOL_VERSION = "0.3.0";
 const VERSION = "0.1.0";
 
+// Open CORS so any agent/scanner (incl. browser-based health probes) can reach this endpoint —
+// a missing preflight/CORS is the usual reason a live endpoint reads as "unknown" to a checker.
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Access-Control-Max-Age": "86400",
+} as const;
+
 const SKILLS = [
   { id: "rosca.create", name: "Create circle", description: "Deploy a savings circle with fixed contribution, period, and rotation.", tags: ["rosca", "savings", "celo"] },
   { id: "rosca.contribute", name: "Collect contributions", description: "Pull each member's periodic contribution in a Mento stablecoin.", tags: ["rosca", "payments", "stablecoin"] },
@@ -58,16 +67,20 @@ const INFO =
 
 type RpcReq = { jsonrpc?: string; id?: number | string | null; method?: string; params?: Record<string, unknown> };
 
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: CORS });
+}
+
 export async function GET() {
-  return NextResponse.json(AGENT_CARD);
+  return NextResponse.json(AGENT_CARD, { headers: CORS });
 }
 
 export async function POST(req: Request) {
   let body: RpcReq;
-  try { body = await req.json(); } catch { return NextResponse.json({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "Parse error" } }, { status: 400 }); }
+  try { body = await req.json(); } catch { return NextResponse.json({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "Parse error" } }, { status: 400, headers: CORS }); }
   const { id, method, params } = body;
-  const ok = (result: unknown) => NextResponse.json({ jsonrpc: "2.0", id: id ?? null, result });
-  const err = (code: number, message: string) => NextResponse.json({ jsonrpc: "2.0", id: id ?? null, error: { code, message } });
+  const ok = (result: unknown) => NextResponse.json({ jsonrpc: "2.0", id: id ?? null, result }, { headers: CORS });
+  const err = (code: number, message: string) => NextResponse.json({ jsonrpc: "2.0", id: id ?? null, error: { code, message } }, { headers: CORS });
 
   switch (method) {
     case "message/send": {
