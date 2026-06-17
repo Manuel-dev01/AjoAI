@@ -66,8 +66,11 @@ def _sweep(agent, chain, log) -> None:
         except Exception as e:  # noqa: BLE001 — never let one circle stall the sweep
             log.warning("serve_all_error", circle=addr, error=str(e))
 
-    # Export on-chain metrics to the miniapp's public dir so the stats page
-    # serves pre-computed data instantly (no slow RPC on every page load).
+    # Export an on-chain metrics snapshot to the miniapp's public dir. NOTE: in
+    # production the agent (Render) and miniapp (Vercel) are SEPARATE deployments with
+    # no shared filesystem, so this write only feeds a LOCAL/monorepo run — the deployed
+    # /api/metrics reads live from chain. Harmless to keep; useful in dev (the route uses
+    # this file only when its timestamp is fresh, else falls through to a live read).
     try:
         from .config import REPO_ROOT
         collector = MetricsCollector(agent.s)

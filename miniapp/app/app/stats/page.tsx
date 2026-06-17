@@ -28,6 +28,9 @@ interface Metrics {
   positiveSignals: number;
   negativeSignals: number;
   agentTxCount: number;
+  yieldDeposits?: number;
+  yieldWithdrawals?: number;
+  totalYield?: string; // wei string (simulated)
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────
@@ -209,6 +212,15 @@ function MetricsDashboard({ data }: { data: Metrics }) {
         <Row k="Positive" v={`+${data.positiveSignals}`} color="var(--green)" />
         <Row k="Negative" v={`-${data.negativeSignals}`} color="var(--clay)" />
       </Section>
+
+      {/* Idle-fund yield — only shown once there is simulated yield activity */}
+      {Number(data.totalYield ?? 0) > 0 && (
+        <Section title="Idle-fund yield (simulated)">
+          <Row k="Total yield accrued" v={`${fmt(data.totalYield!)} tokens`} color="var(--green)" />
+          <Row k="Deposits" v={data.yieldDeposits ?? 0} />
+          <Row k="Withdrawals" v={data.yieldWithdrawals ?? 0} />
+        </Section>
+      )}
     </>
   );
 }
