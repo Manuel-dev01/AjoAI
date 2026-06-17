@@ -7,29 +7,40 @@
   "version": "0.1.0",
   "active": true,
   "x402Support": false,
+  "publisher": {
+    "name": "AjoAI",
+    "url": "https://ajo-ai-tan.vercel.app",
+    "icon": "https://ajo-ai-tan.vercel.app/icon.png",
+    "did": "did:pkh:eip155:42220:0x8974881E39a5eF62214929B6CaA6EC0C6e7D47c7",
+    "contact": "emmanuelolamiye@gmail.com"
+  },
   "services": [
-    { "name": "web", "endpoint": "https://ajo-ai-tan.vercel.app" },
-    { "name": "A2A", "endpoint": "https://ajo-ai-tan.vercel.app/api/a2a", "version": "0.3.0", "skills": ["rosca.create", "rosca.contribute", "rosca.payout", "rosca.default-recovery", "rosca.reputation", "nl.query"] },
-    { "name": "MCP", "endpoint": "https://ajo-ai-tan.vercel.app/api/mcp", "version": "2025-06-18", "mcpTools": ["get_circle", "get_score", "ask", "list_circles"] },
-    { "name": "metrics", "endpoint": "https://ajo-ai-tan.vercel.app/api/metrics", "description": "Live on-chain metrics: circles, members, contributions, payouts, reputation signals, agent txs." },
-    { "name": "DID", "endpoint": "did:pkh:eip155:42220:0x8974881E39a5eF62214929B6CaA6EC0C6e7D47c7", "version": "v1" },
-    { "name": "email", "endpoint": "emmanuelolamiye@gmail.com" }
+    { "name": "web", "type": "web", "endpoint": "https://ajo-ai-tan.vercel.app" },
+    { "name": "A2A", "type": "a2a", "endpoint": "https://ajo-ai-tan.vercel.app/api/a2a", "version": "0.3.0", "skills": ["rosca.create", "rosca.contribute", "rosca.payout", "rosca.default-recovery", "rosca.reputation", "nl.query"] },
+    { "name": "MCP", "type": "mcp", "endpoint": "https://ajo-ai-tan.vercel.app/api/mcp", "version": "2025-06-18", "mcpTools": ["get_circle", "get_score", "ask", "list_circles"] },
+    { "name": "metrics", "type": "metrics", "endpoint": "https://ajo-ai-tan.vercel.app/api/metrics", "description": "Live on-chain metrics: circles, members, contributions, payouts, reputation signals, agent txs." },
+    { "name": "DID", "type": "did", "endpoint": "did:pkh:eip155:42220:0x8974881E39a5eF62214929B6CaA6EC0C6e7D47c7", "version": "v1" },
+    { "name": "email", "type": "email", "endpoint": "emmanuelolamiye@gmail.com" }
   ],
   "provider": { "name": "AjoAI", "url": "https://ajo-ai-tan.vercel.app" },
   "skills": [
-    { "id": "rosca.create", "name": "Create circle", "description": "Deploy a savings circle with fixed contribution, period, and rotation." },
-    { "id": "rosca.contribute", "name": "Collect contributions", "description": "Pull each member's periodic contribution in a Mento stablecoin." },
-    { "id": "rosca.payout", "name": "Autonomous payout", "description": "Pay the full pot to the round's recipient on schedule, no human in the loop." },
-    { "id": "rosca.default-recovery", "name": "Default recovery", "description": "Cover missed rounds from security deposits; write negative ERC-8004 reputation." },
-    { "id": "rosca.reputation", "name": "Savings-credit score", "description": "Issue a portable ERC-8004 savings-credit score per member." },
-    { "id": "nl.query", "name": "Natural-language member Q&A", "description": "Answer member questions in English, Nigerian Pidgin, and Swahili (explains chain state; never authorizes money)." },
-    { "id": "metrics", "name": "On-chain metrics", "description": "Live aggregate stats: circles created, contributions, payouts, defaults recovered, reputation signals, agent tx count." }
+    { "id": "rosca.create", "name": "Create circle", "description": "Deploy a savings circle with fixed contribution, period, and rotation.", "tags": ["defi", "savings", "roscas", "financial-inclusion"] },
+    { "id": "rosca.contribute", "name": "Collect contributions", "description": "Pull each member's periodic contribution in a Mento stablecoin.", "tags": ["payments", "stablecoins", "celo"] },
+    { "id": "rosca.payout", "name": "Autonomous payout", "description": "Pay the full pot to the round's recipient on schedule, no human in the loop.", "tags": ["autonomous", "payments", "agent"] },
+    { "id": "rosca.default-recovery", "name": "Default recovery", "description": "Cover missed rounds from security deposits; write negative ERC-8004 reputation.", "tags": ["risk", "reputation", "enforcement"] },
+    { "id": "rosca.reputation", "name": "Savings-credit score", "description": "Issue a portable ERC-8004 savings-credit score per member.", "tags": ["reputation", "identity", "credit"] },
+    { "id": "nl.query", "name": "Natural-language member Q&A", "description": "Answer member questions in English, Nigerian Pidgin, and Swahili (explains chain state; never authorizes money).", "tags": ["nlp", "multilingual", "support"] },
+    { "id": "metrics", "name": "On-chain metrics", "description": "Live aggregate stats: circles created, contributions, payouts, defaults recovered, reputation signals, agent tx count.", "tags": ["analytics", "transparency", "on-chain"] }
   ],
   "registrations": [
     { "agentId": 9339, "agentRegistry": "eip155:42220:0x8004A169FB4a3325136EB29fA0ceB6D2e539a432" },
     { "agentId": 307, "agentRegistry": "eip155:11142220:0x8004A818BFB912233c491871b3d84c89A494BD9e" }
   ],
-  "supportedTrust": ["reputation"],
+  "supportedTrust": ["reputation", "identity"],
+  "trustMechanisms": [
+    { "type": "reputation", "description": "ERC-8004 on-chain reputation signals for contribution timeliness and default behavior" },
+    { "type": "identity", "description": "Self ZK proof-of-personhood for sybil-resistant membership" }
+  ],
   "selfAgentId": null,
   "contracts": {
     "circleFactory.celoMainnet": "0xE2401Ab2ea9E4c68cBA9946e4079cd7eF4d82186",
@@ -37,5 +48,15 @@
     "circleFactory.celoSepolia": "0x032fEE1776508fE59bA715120Bc190b682162191",
     "reputationLedger.celoSepolia": "0x12Ac76Fd85500fd1dF47D6bF15B6B275eA3FB3Ce"
   },
-  "framework": "custom (Python web3.py); LLM = DeepSeek (NL handler only, never moves money)"
+  "framework": "custom (Python web3.py); LLM = DeepSeek (NL handler only, never moves money)",
+  "capabilities": [
+    "autonomous-financial-transactions",
+    "on-chain-reputation",
+    "multi-language-nlp",
+    "stablecoin-payments",
+    "yield-optimization",
+    "sybil-resistance"
+  ],
+  "chains": ["eip155:42220", "eip155:11142220"],
+  "tags": ["defi", "savings", "roscas", "financial-inclusion", "celo", "stablecoins", "autonomous-agent", "reputation"]
 }
