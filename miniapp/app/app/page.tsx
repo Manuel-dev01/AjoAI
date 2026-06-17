@@ -185,6 +185,7 @@ function Dashboard({ address, name, onEdit }: { address: `0x${string}`; name: st
         <div style={{ marginTop: 16, display: "grid", gap: 9 }}>
           <Link href="/app/create" className="btn btn-block">+ Start a circle</Link>
           <Link href="/app/join" className="btn-ghost" style={{ textAlign: "center", display: "block" }}>Join with a code</Link>
+          <Link href="/app/stats" className="btn-ghost" style={{ textAlign: "center", display: "block" }}>📊 On-chain stats</Link>
         </div>
       </div>
     </>

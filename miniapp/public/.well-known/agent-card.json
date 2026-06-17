@@ -11,6 +11,7 @@
     { "name": "web", "endpoint": "https://ajo-ai-tan.vercel.app" },
     { "name": "A2A", "endpoint": "https://ajo-ai-tan.vercel.app/api/a2a", "version": "0.3.0", "skills": ["rosca.create", "rosca.contribute", "rosca.payout", "rosca.default-recovery", "rosca.reputation", "nl.query"] },
     { "name": "MCP", "endpoint": "https://ajo-ai-tan.vercel.app/api/mcp", "version": "2025-06-18", "mcpTools": ["get_circle", "get_score", "ask", "list_circles"] },
+    { "name": "metrics", "endpoint": "https://ajo-ai-tan.vercel.app/api/metrics", "description": "Live on-chain metrics: circles, members, contributions, payouts, reputation signals, agent txs." },
     { "name": "DID", "endpoint": "did:pkh:eip155:42220:0x8974881E39a5eF62214929B6CaA6EC0C6e7D47c7", "version": "v1" },
     { "name": "email", "endpoint": "emmanuelolamiye@gmail.com" }
   ],
@@ -21,7 +22,8 @@
     { "id": "rosca.payout", "name": "Autonomous payout", "description": "Pay the full pot to the round's recipient on schedule, no human in the loop." },
     { "id": "rosca.default-recovery", "name": "Default recovery", "description": "Cover missed rounds from security deposits; write negative ERC-8004 reputation." },
     { "id": "rosca.reputation", "name": "Savings-credit score", "description": "Issue a portable ERC-8004 savings-credit score per member." },
-    { "id": "nl.query", "name": "Natural-language member Q&A", "description": "Answer member questions in English, Nigerian Pidgin, and Swahili (explains chain state; never authorizes money)." }
+    { "id": "nl.query", "name": "Natural-language member Q&A", "description": "Answer member questions in English, Nigerian Pidgin, and Swahili (explains chain state; never authorizes money)." },
+    { "id": "metrics", "name": "On-chain metrics", "description": "Live aggregate stats: circles created, contributions, payouts, defaults recovered, reputation signals, agent tx count." }
   ],
   "registrations": [
     { "agentId": 9339, "agentRegistry": "eip155:42220:0x8004A169FB4a3325136EB29fA0ceB6D2e539a432" },
