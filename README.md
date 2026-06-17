@@ -33,11 +33,16 @@ explains chain state.
 ## Live on Celo mainnet (chainId 42220), real money, verifiable now
 All contracts source-verified on [Celoscan](https://celoscan.io) (Sourcify exact_match).
 
-| Contract | Address |
-|---|---|
-| CircleFactory | [`0xE2401Ab2…2186`](https://celoscan.io/address/0xE2401Ab2ea9E4c68cBA9946e4079cd7eF4d82186) |
-| ReputationLedger | [`0xd2f340Fe…Ed04`](https://celoscan.io/address/0xd2f340Fe1616aB5190F326A6f127f852F5C5Ed04) |
-| YieldAdapter | [`0xF9293905…014d`](https://celoscan.io/address/0xF9293905e64c39C5856CE4Aa895ab7c80F62014d) |
+| Contract | Role | Address |
+|---|---|---|
+| CircleFactory | spawns circles, bakes in the agent | [`0xE2401Ab2…2186`](https://celoscan.io/address/0xE2401Ab2ea9E4c68cBA9946e4079cd7eF4d82186) |
+| ReputationLedger | ERC-8004 savings-credit signals | [`0xd2f340Fe…Ed04`](https://celoscan.io/address/0xd2f340Fe1616aB5190F326A6f127f852F5C5Ed04) |
+| YieldAdapter *(simulated, loud)* | idle-fund parking interface | [`0xF9293905…014d`](https://celoscan.io/address/0xF9293905e64c39C5856CE4Aa895ab7c80F62014d) |
+| **Circle** | the escrow that holds the pot + enforces every rule | **one deployed per circle** by the factory — e.g. [`0x4D03…E11F`](https://celoscan.io/address/0x4D03D887c3bB293623A8aF842DB80B4680a5E11F) |
+
+The first three are fixed singletons; **`Circle`** is the core money contract — the factory deploys a
+fresh, source-verified instance on every `createCircle` (the address above is the completed real-USD₮
+proof circle). So the on-chain footprint is **four contract types**, with a new `Circle` per savings group.
 
 **ERC-8004 agent identity:** registered as **agentId 9339** on the mainnet Identity Registry
 (`0x8004A169…`), [8004scan](https://8004scan.io/agents/celo/9339) (track #3, Celo mainnet rank).
