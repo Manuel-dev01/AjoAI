@@ -29,6 +29,11 @@ export const metadata: Metadata = {
     shortcut: "/icon.png",
     apple: "/icon.png",
   },
+  // TalentApp project verification tag (renders <meta name="talentapp:project_verification" ...> in <head>).
+  other: {
+    "talentapp:project_verification":
+      "f494d1c89e807c883285116ac619e4721a2a6be8229c1b352d2981673ea1b9da23c0b7585634146151b3b809af0a9e65407a20b60cfc521c225ca030a5806d8d",
+  },
 };
 
 export const viewport: Viewport = {

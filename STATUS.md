@@ -8,13 +8,15 @@ agent only triggers legal state transitions; the LLM is restricted to natural-la
 never moves funds.
 
 ## Live on Celo mainnet (chainId 42220)
-All three contracts are source-verified (Sourcify exact_match) on Celoscan.
+All contracts are source-verified (Sourcify exact_match) on Celoscan. Three fixed singletons
+below, plus the per-circle `Circle` escrow the factory deploys on every `createCircle`.
 
 | Component | Address / value |
 |---|---|
 | CircleFactory | `0xE2401Ab2ea9E4c68cBA9946e4079cd7eF4d82186` |
 | ReputationLedger | `0xd2f340Fe1616aB5190F326A6f127f852F5C5Ed04` |
-| YieldAdapter | `0xF9293905e64c39C5856CE4Aa895ab7c80F62014d` |
+| YieldAdapter (SimulatedYieldAdapter, loud sim) | `0xF9293905e64c39C5856CE4Aa895ab7c80F62014d` |
+| Circle (escrow, one per circle) | per-circle; proof instance `0x4D03D887c3bB293623A8aF842DB80B4680a5E11F` |
 | Agent (baked into factory) | `0x8974881E39a5eF62214929B6CaA6EC0C6e7D47c7` |
 | ERC-8004 agent identity | agentId 9339 (Identity Registry `0x8004A169…`), https://8004scan.io/agents/celo/9339 |
 
