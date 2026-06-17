@@ -1,0 +1,22 @@
+{
+  "chain": "mainnet",
+  "chainId": 42220,
+  "timestamp": "2026-06-17T01:05:26.888Z",
+  "circlesCreated": 20,
+  "completed": 7,
+  "defaulted": 0,
+  "dissolved": 10,
+  "active": 0,
+  "forming": 3,
+  "uniqueMembers": 9,
+  "contributionCount": 33,
+  "lateContributions": 0,
+  "totalContributions": "16700000",
+  "payoutCount": 15,
+  "totalPayouts": "16700000",
+  "defaultsTriggered": 0,
+  "reputationSignals": 2,
+  "positiveSignals": 1,
+  "negativeSignals": 1,
+  "agentTxCount": 158
+}

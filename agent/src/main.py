@@ -6,6 +6,7 @@
   python -m src.main serve-all             # one sweep over EVERY factory circle
   python -m src.main run-all [SECONDS]     # scheduled sweep over every factory circle
   python -m src.main info                  # config + connectivity check
+  python -m src.main metrics [--json PATH] # on-chain metrics snapshot (socials + 8004scan)
 
 CIRCLE defaults to deployments.demoCircle in config/addresses.<chain>.json.
 serve-all / run-all service every circle the factory deployed (each bakes our agent key),
@@ -25,6 +26,7 @@ from .chain import ChainClient
 from .config import load_settings
 from .logs import configure, get_logger
 from .loop import Agent, decide
+from .metrics import MetricsCollector
 
 
 def _circle_arg(settings, argv) -> str:
@@ -63,6 +65,18 @@ def _sweep(agent, chain, log) -> None:
                 log.info("serviced", circle=addr, state=v.state_name, results=results)
         except Exception as e:  # noqa: BLE001 — never let one circle stall the sweep
             log.warning("serve_all_error", circle=addr, error=str(e))
+
+    # Export on-chain metrics to the miniapp's public dir so the stats page
+    # serves pre-computed data instantly (no slow RPC on every page load).
+    try:
+        from .config import REPO_ROOT
+        collector = MetricsCollector(agent.s)
+        snap = collector.collect()
+        out = REPO_ROOT / "miniapp" / "public" / "data" / "metrics.json"
+        collector.export_json(snap, out, frontend=True)
+        log.info("metrics_exported", path=str(out))
+    except Exception as e:  # noqa: BLE001 — never let metrics stall the sweep
+        log.warning("metrics_export_error", error=str(e))
 
 
 def _demo_rotation(chain, log) -> None:
@@ -124,6 +138,41 @@ def main() -> None:
             simulate_self=settings.simulate_self,
             simulate_yield=settings.simulate_yield,
         )
+        return
+
+    if cmd == "metrics":
+        collector = MetricsCollector(settings)
+        log.info("metrics_start", chain=settings.chain, factory=settings.factory)
+        snap = collector.collect()
+        # Pretty-print to stdout
+        print(f"\n{'='*50}")
+        print(f"  AjoAI On-Chain Metrics — {snap.chain} (chainId {snap.chain_id})")
+        print(f"{'='*50}")
+        print(f"  Circles created:      {snap.circles_created}")
+        print(f"    Active:             {snap.circles_active}")
+        print(f"    Completed:          {snap.circles_completed}")
+        print(f"    Defaulted:          {snap.circles_defaulted}")
+        print(f"    Dissolved:          {snap.circles_dissolved}")
+        print(f"    Forming:            {snap.circles_forming}")
+        print(f"  Unique members:       {snap.unique_members}")
+        print(f"  Contributions:        {snap.contribution_count} ({snap.late_contributions} late)")
+        print(f"  Total contributed:    {snap.total_contributions_wei / 1e18:,.2f} tokens")
+        print(f"  Payouts:              {snap.payout_count}")
+        print(f"  Total distributed:    {snap.total_payouts_wei / 1e18:,.2f} tokens")
+        print(f"  Defaults recovered:   {snap.defaults_triggered}")
+        print(f"  Reputation signals:   {snap.reputation_signals} (+{snap.positive_signals} / -{snap.negative_signals})")
+        print(f"  Yield deposits:       {snap.yield_deposits}")
+        print(f"  Yield withdrawals:    {snap.yield_withdrawals}")
+        print(f"  Agent tx count:       {snap.agent_tx_count}")
+        print(f"{'='*50}\n")
+        # Optional JSON export
+        json_path = None
+        for i, arg in enumerate(sys.argv):
+            if arg == "--json" and i + 1 < len(sys.argv):
+                json_path = sys.argv[i + 1]
+        if json_path:
+            collector.export_json(snap, json_path)
+            log.info("metrics_exported", path=json_path)
         return
 
     if cmd == "serve-all":
