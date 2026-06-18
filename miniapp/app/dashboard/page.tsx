@@ -1,43 +1,14 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { RingMark } from "@/components/RingMark";
-import { useMetrics, MetricsDashboard, fmt, timeAgo } from "@/components/stats";
+import { useMetrics, MetricsDashboard, timeAgo } from "@/components/stats";
 import { StateDonut, CountBars, ReputationSplit } from "@/components/charts";
 
 // Public on-chain dashboard — global metrics across ALL circles, with charts. Linked from the
 // landing page. No wallet required; reads the (snapshot-backed) /api/metrics endpoint.
 export default function DashboardPage() {
   const { data, error, loading, reload } = useMetrics();
-  const [copied, setCopied] = useState(false);
-
-  const tweet = data
-    ? [
-        `AjoAI on-chain stats (${data.chain})`,
-        "",
-        `🏦 ${data.circlesCreated} circles created`,
-        `👥 ${data.uniqueMembers} unique members`,
-        `💰 ${fmt(data.totalContributions)} contributed across ${data.contributionCount} payments`,
-        `📤 ${fmt(data.totalPayouts)} distributed in ${data.payoutCount} payouts`,
-        `🛡️ ${data.defaultsTriggered} defaults recovered autonomously`,
-        `⭐ ${data.reputationSignals} reputation signals (+${data.positiveSignals} / -${data.negativeSignals})`,
-        `🤖 ${data.agentTxCount} agent transactions`,
-        "",
-        "An ajo savings circle that runs itself. No human in the loop.",
-        "ajo-ai-tan.vercel.app",
-      ].join("\n")
-    : "";
-
-  const copyTweet = async () => {
-    try {
-      await navigator.clipboard.writeText(tweet);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      /* clipboard blocked */
-    }
-  };
 
   return (
     <div style={page}>
@@ -99,17 +70,12 @@ export default function DashboardPage() {
             {/* Numbers */}
             <MetricsDashboard data={data} />
 
-            <div style={{ marginTop: 16 }}>
-              <button className="btn btn-block" onClick={copyTweet}>
-                {copied ? "Copied ✓" : "Copy stats for tweet"}
-              </button>
-              <div className="muted" style={{ marginTop: 8, textAlign: "center" }}>
-                {data.stale ? "Snapshot · " : "Updated "}
-                {timeAgo(data.timestamp)} ·{" "}
-                <span style={{ cursor: "pointer", textDecoration: "underline" }} onClick={reload}>
-                  refresh
-                </span>
-              </div>
+            <div className="muted" style={{ marginTop: 16, textAlign: "center" }}>
+              {data.stale ? "Snapshot · " : "Updated "}
+              {timeAgo(data.timestamp)} ·{" "}
+              <span style={{ cursor: "pointer", textDecoration: "underline" }} onClick={reload}>
+                refresh
+              </span>
             </div>
           </>
         )}
