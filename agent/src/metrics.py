@@ -100,53 +100,35 @@ class MetricsCollector:
 
         return snap
 
-    def export_json(self, snap: MetricsSnapshot, path: Path | str, *, frontend: bool = False) -> None:
-        """Write a snapshot to a JSON file.
+    # camelCase / wei-as-string key map — the shape the Next.js stats page + /api/metrics expect.
+    _FRONTEND_KEY_MAP = {
+        "chain": "chain", "chain_id": "chainId", "explorer": "explorer", "factory": "factory",
+        "circles_created": "circlesCreated", "circles_completed": "completed",
+        "circles_defaulted": "defaulted", "circles_dissolved": "dissolved",
+        "circles_active": "active", "circles_forming": "forming",
+        "total_contributions_wei": "totalContributions", "contribution_count": "contributionCount",
+        "late_contributions": "lateContributions", "total_payouts_wei": "totalPayouts",
+        "payout_count": "payoutCount", "unique_members": "uniqueMembers",
+        "defaults_triggered": "defaultsTriggered", "reputation_signals": "reputationSignals",
+        "positive_signals": "positiveSignals", "negative_signals": "negativeSignals",
+        "yield_deposits": "yieldDeposits", "yield_withdrawals": "yieldWithdrawals",
+        "total_yield_wei": "totalYield", "agent_tx_count": "agentTxCount",
+    }
+    _WEI_KEYS = {"total_contributions_wei", "total_payouts_wei", "total_yield_wei"}
 
-        If *frontend* is True, keys are camelCase and wei values are strings —
-        the shape the Next.js stats page expects.
-        """
+    def frontend_payload(self, snap: MetricsSnapshot) -> dict:
+        """camelCase, wei-as-strings dict — the shape the Next.js stats page + /api/metrics expect."""
+        out: dict = {}
+        for k, v in asdict(snap).items():
+            out[self._FRONTEND_KEY_MAP.get(k, k)] = str(v) if k in self._WEI_KEYS else v
+        out["timestamp"] = datetime.now(timezone.utc).isoformat()
+        return out
+
+    def export_json(self, snap: MetricsSnapshot, path: Path | str, *, frontend: bool = False) -> None:
+        """Write a snapshot to a JSON file (camelCase frontend shape if *frontend*)."""
         p = Path(path)
         p.parent.mkdir(parents=True, exist_ok=True)
-        data = asdict(snap)
-        if frontend:
-            _KEY_MAP = {
-                "chain": "chain",
-                "chain_id": "chainId",
-                "explorer": "explorer",
-                "factory": "factory",
-                "circles_created": "circlesCreated",
-                "circles_completed": "completed",
-                "circles_defaulted": "defaulted",
-                "circles_dissolved": "dissolved",
-                "circles_active": "active",
-                "circles_forming": "forming",
-                "total_contributions_wei": "totalContributions",
-                "contribution_count": "contributionCount",
-                "late_contributions": "lateContributions",
-                "total_payouts_wei": "totalPayouts",
-                "payout_count": "payoutCount",
-                "unique_members": "uniqueMembers",
-                "defaults_triggered": "defaultsTriggered",
-                "reputation_signals": "reputationSignals",
-                "positive_signals": "positiveSignals",
-                "negative_signals": "negativeSignals",
-                "yield_deposits": "yieldDeposits",
-                "yield_withdrawals": "yieldWithdrawals",
-                "total_yield_wei": "totalYield",
-                "agent_tx_count": "agentTxCount",
-            }
-            out: dict = {}
-            for k, v in data.items():
-                ck = _KEY_MAP.get(k, k)
-                # wei values → strings (frontend parses them back to BigInt)
-                if k in {"total_contributions_wei", "total_payouts_wei", "total_yield_wei"}:
-                    out[ck] = str(v)
-                else:
-                    out[ck] = v
-            # Add the timestamp field the frontend expects.
-            out["timestamp"] = datetime.now(timezone.utc).isoformat()
-            data = out
+        data = self.frontend_payload(snap) if frontend else asdict(snap)
         p.write_text(json.dumps(data, indent=2), encoding="utf-8")
 
     # ── internals ──

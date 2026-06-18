@@ -1,66 +1,49 @@
 import { NextResponse } from "next/server";
-import {
-  readCallState,
-  readSnapshot,
-  looksEmpty,
-  withEventsFrom,
-  type Metrics,
-} from "@/lib/metrics";
+import { activeChain } from "@/lib/chain";
+import { readSnapshot, readLiveOverlay, withTimeout, type Metrics } from "@/lib/metrics";
 
-// Force dynamic — reads live chain data, but bounded: only cheap call-state metrics are read
-// live (circles, members, contributions, payouts, reputation, agent txs). Event-derived
-// figures (late payments, simulated yield) come from the freshest snapshot (Vercel Blob, kept
-// current by the /api/metrics/refresh cron, else the committed file). An in-process cache and
-// the CDN header below keep this fast and bound RPC load.
+// Force dynamic. Strategy: serve the freshest SNAPSHOT (the full picture — circles, states,
+// members, contributions, payouts, reputation, events — refreshed out-of-band by the agent
+// ingest / cron and stored in Vercel Blob, with a committed file as the floor), and overlay only
+// two cheap, fast-growing live numbers (agent tx count + total circles). Snapshot read and live
+// overlay both run in parallel under hard timeouts, so the handler ALWAYS returns quickly,
+// regardless of how many circles exist — no per-circle enumeration on the request path.
 export const dynamic = "force-dynamic";
 
-const CACHE_HEADERS = {
-  "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60",
-};
-
-// Overall internal deadline so the handler ALWAYS returns before the client's 25s abort.
-const LIVE_DEADLINE_MS = 12_000;
-// In-process memo so warm invocations / "refresh" clicks don't re-hit the RPC.
-const MEMO_TTL_MS = 60_000;
+const CACHE_HEADERS = { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60" };
+const OVERLAY_DEADLINE_MS = 6_000;
+const MEMO_TTL_MS = 30_000;
 let memo: { data: Metrics; expiry: number } | null = null;
-
-function withDeadline<T>(p: Promise<T>, ms: number): Promise<T> {
-  return Promise.race([
-    p,
-    new Promise<never>((_, reject) => setTimeout(() => reject(new Error("live read deadline")), ms)),
-  ]);
-}
 
 export async function GET() {
   if (memo && memo.expiry > Date.now()) {
     return NextResponse.json(memo.data, { headers: CACHE_HEADERS });
   }
 
-  try {
-    // Live call-state + snapshot (for event fields / fallback) in parallel, under one deadline.
-    const [call, snap] = await withDeadline(
-      Promise.all([readCallState(), readSnapshot()]),
-      LIVE_DEADLINE_MS
-    );
+  // Snapshot (internally timed) + cheap 2-call live overlay (deadline-bounded), in parallel.
+  const [snap, overlay] = await Promise.all([
+    readSnapshot().catch(() => null),
+    withTimeout(readLiveOverlay(), OVERLAY_DEADLINE_MS).catch(() => null),
+  ]);
 
-    const live: Metrics = { ...call.metrics, timestamp: new Date().toISOString() } as Metrics;
-
-    // If the live read came back empty (likely a transient RPC failure) but we have a
-    // non-empty snapshot, prefer the snapshot over showing all-zeros.
-    if (looksEmpty(live) && snap && !looksEmpty(snap)) {
-      return NextResponse.json({ ...snap, stale: true }, { headers: CACHE_HEADERS });
-    }
-
-    const merged = withEventsFrom(live, snap);
-    memo = { data: merged, expiry: Date.now() + MEMO_TTL_MS };
-    return NextResponse.json(merged, { headers: CACHE_HEADERS });
-  } catch (err) {
-    // Deadline or RPC failure — serve the freshest snapshot rather than hang/500.
-    const snap = await readSnapshot().catch(() => null);
-    if (snap) {
-      return NextResponse.json({ ...snap, stale: true }, { headers: CACHE_HEADERS });
-    }
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+  let data: Metrics;
+  if (snap) {
+    // Base on the snapshot; overlay the two headline numbers when the live read succeeded.
+    data = overlay
+      ? { ...snap, ...overlay, timestamp: new Date().toISOString() }
+      : { ...snap, stale: true };
+  } else if (overlay) {
+    // No snapshot at all (extremely unlikely — the committed copy is bundled): minimal live shell.
+    data = {
+      chain: activeChain.name,
+      chainId: activeChain.id,
+      timestamp: new Date().toISOString(),
+      ...overlay,
+    } as unknown as Metrics;
+  } else {
+    return NextResponse.json({ error: "metrics temporarily unavailable" }, { status: 503 });
   }
+
+  memo = { data, expiry: Date.now() + MEMO_TTL_MS };
+  return NextResponse.json(data, { headers: CACHE_HEADERS });
 }

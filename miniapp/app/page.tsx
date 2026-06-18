@@ -17,6 +17,7 @@ export default function Landing() {
             <a href="#voices">Voices</a>
             <a href="#app">In MiniPay</a>
             <a href="#faq">FAQ</a>
+            <Link href="/dashboard">Dashboard</Link>
           </div>
           <Link href="/app" className="btn btn-ochre">Open in MiniPay</Link>
         </div>
@@ -38,6 +39,7 @@ export default function Landing() {
             <p className="sub">A rotating savings circle, run by an agent that can&rsquo;t be bribed, can&rsquo;t forget, and never skips your turn.</p>
             <div className="hero-cta">
               <Link href="/app" className="btn btn-ochre">Open in MiniPay →</Link>
+              <Link href="/dashboard" className="btn btn-cream">📊 Live dashboard</Link>
               <a href="#how" className="btn btn-cream">See how it works</a>
             </div>
           </div>

@@ -185,6 +185,73 @@ export function useMyCircles() {
   return { me, all, mine, isLoading: listCalls.isLoading };
 }
 
+/**
+ * Cumulative on-chain stats for the connected address across every circle it CREATED or JOINED.
+ * Reuses useMyCircles() (organizer OR member, non-dissolved) and batch-reads each circle's
+ * scalars to aggregate. Bounded by the user's own circle count.
+ */
+export interface MyStats {
+  circles: number;
+  created: number;
+  joined: number;
+  active: number;
+  completed: number;
+  defaulted: number;
+  forming: number;
+  totalContributed: string; // wei
+  totalDistributed: string; // wei
+  contributions: number;
+  payouts: number;
+  seats: number; // sum of member seats across your circles
+}
+
+export function useMyStats() {
+  const { me, mine, isLoading } = useMyCircles();
+  const detail = useReadContracts({
+    query: { enabled: mine.length > 0, refetchInterval: 15_000 },
+    contracts: mine.flatMap(({ addr }) => [
+      { address: addr, abi: circleAbi, functionName: "state" as const },
+      { address: addr, abi: circleAbi, functionName: "slots" as const },
+      { address: addr, abi: circleAbi, functionName: "roundsPaid" as const },
+      { address: addr, abi: circleAbi, functionName: "contribution" as const },
+      { address: addr, abi: circleAbi, functionName: "membersLength" as const },
+    ]),
+  });
+  const score = useScore(me);
+  const stats = useMemo<MyStats>(() => {
+    const s: MyStats = {
+      circles: mine.length, created: 0, joined: 0, active: 0, completed: 0, defaulted: 0,
+      forming: 0, totalContributed: "0", totalDistributed: "0", contributions: 0, payouts: 0, seats: 0,
+    };
+    let contributed = 0n;
+    let distributed = 0n;
+    mine.forEach((c, i) => {
+      const base = i * 5;
+      const num = (k: number) => Number((detail.data?.[base + k]?.result as bigint | number) ?? 0);
+      const big = (k: number) => (detail.data?.[base + k]?.result as bigint) ?? 0n;
+      const state = num(0), slots = num(1), roundsPaid = num(2), members = num(4);
+      const contribution = big(3);
+      if (c.isOrganizer) s.created++;
+      else if (c.isMember) s.joined++;
+      if (state === 0) s.forming++;
+      else if (state === 1) s.active++;
+      else if (state === 2) s.completed++;
+      else if (state === 3) s.defaulted++;
+      if (slots > 0 && contribution > 0n) {
+        contributed += BigInt(roundsPaid) * BigInt(slots) * contribution;
+        distributed += BigInt(roundsPaid) * BigInt(slots) * contribution;
+        s.contributions += roundsPaid * slots;
+        s.payouts += roundsPaid;
+      }
+      s.seats += members;
+    });
+    s.totalContributed = contributed.toString();
+    s.totalDistributed = distributed.toString();
+    return s;
+  }, [mine, detail.data]);
+  return { me, stats, score, isLoading: isLoading || detail.isLoading };
+}
+
 /** ERC-8004 savings-credit score breakdown. */
 export function useScore(who?: Addr) {
   const { data } = useReadContract({
