@@ -49,7 +49,10 @@ GRACE = int(os.getenv("AJOAI_SEED_GRACE", "120"))
 PENALTY_BPS = 500
 CONTRIB_HUMAN = os.getenv("AJOAI_SEED_CONTRIB", "0.3")
 GAS_TOPUP = Web3.to_wei(os.getenv("AJOAI_SEED_GAS_CELO", "0.6"), "ether")  # CELO per member
-STATE_FILE = REPO_ROOT / "agent" / ".mainnet_members.json"
+# Member-wallet state. Default lives in the repo; override with AJOAI_SEED_STATE to point at a
+# PERSISTENT volume (e.g. /data/.mainnet_members.json on Railway) so member keys + any residual
+# USD₮ survive redeploys — an ephemeral container otherwise loses the keys and strands the funds.
+STATE_FILE = Path(os.getenv("AJOAI_SEED_STATE") or (REPO_ROOT / "agent" / ".mainnet_members.json"))
 MAX_UINT = 2**256 - 1
 
 
@@ -125,6 +128,11 @@ class Seeder:
 
     def usdt(self, addr: str) -> int:
         return self.token.functions.balanceOf(Web3.to_checksum_address(addr)).call()
+
+    def required_usdt(self) -> int:
+        """Worst-case USD₮ the agent must hold to fund a FRESH rotation: each of SLOTS members is
+        funded (SLOTS+1)*contribution (deposit + one contribution per round)."""
+        return SLOTS * (SLOTS + 1) * self.contribution
 
     def _members(self) -> list:
         return [self.w3.eth.account.from_key(m["priv"]) for m in self.st["members"]]
@@ -251,6 +259,20 @@ class Seeder:
         self.log.info("sweep_done", usdt_returned=swept["usdt"])
         return swept
 
+    def recover_and_reset(self) -> dict:
+        """Sweep residual USD₮/CELO from member wallets back to the agent and clear per-circle
+        state so the next rotation starts fresh (member keys are reused). No-op without members.
+
+        Run on worker startup: a restart otherwise resumes a possibly-broken circle and leaves
+        any un-deposited USD₮ stranded in the member wallets."""
+        if not self.st.get("members"):
+            return {"usdt": 0, "txs": []}
+        swept = self.sweep()
+        for k in ("circle", "createTx", "payouts", "finalizeTx"):
+            self.st.pop(k, None)
+        _save_state(self.st)
+        return swept
+
     def report(self, circle_addr: str, agent_usdt_before: int, swept: dict) -> dict:
         circle = self.chain.circle(circle_addr)
         in_sum, out_sum = circle.functions.reconcile().call()
@@ -297,6 +319,17 @@ def seed_once(log=None) -> dict:
     if log is not None:
         sd.log = log
     agent_usdt_before = sd.usdt(sd.agent.address)
+    # Don't create a circle we can't fund — a half-formed circle would strand on-chain and bleed
+    # CELO each cycle. Skip cleanly when starting fresh without enough USD₮ (mirrors the low_gas
+    # guard). A resume (circle already in state) proceeds — its members may already be funded.
+    need = sd.required_usdt()
+    if agent_usdt_before < need and not sd.st.get("circle"):
+        sd.log.warning(
+            "seed_skip_low_usdt",
+            agentUsdt=str(agent_usdt_before), required=str(need), symbol=sd.sym,
+        )
+        return {"skipped": "low_usdt", "agentUsdt": str(agent_usdt_before),
+                "required": str(need), "symbol": sd.sym}
     sd.ensure_members()
     circle_addr = sd.ensure_circle()
     sd.fund_and_join(circle_addr)

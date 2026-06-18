@@ -93,7 +93,13 @@ def _demo_rotation(chain, log) -> None:
         from scripts.mainnet_seed import seed_once
         log.info("demo_rotation_start")
         summary = seed_once(log=log)
-        log.info("demo_rotation_done", circle=summary.get("circle"), reconcile=summary.get("reconcile"))
+        if summary.get("skipped"):
+            # e.g. low_usdt: the agent lacks the USD₮ to fund a fresh circle, so seed_once skipped
+            # instead of stranding a half-formed circle. Top up the agent's USD₮ to resume.
+            log.warning("demo_rotation_skipped", **{k: summary[k]
+                        for k in ("skipped", "agentUsdt", "required", "symbol") if k in summary})
+        else:
+            log.info("demo_rotation_done", circle=summary.get("circle"), reconcile=summary.get("reconcile"))
     except Exception as e:  # noqa: BLE001 — a failed rotation must never crash the worker
         log.warning("demo_rotation_error", error=str(e))
 
@@ -118,6 +124,24 @@ def _schedule_demo_rotation(sched, settings, chain, log) -> None:
         misfire_grace_time=3600,
         next_run_time=datetime.now() + timedelta(seconds=90),
     )
+
+
+def _startup_recover(settings, log) -> None:
+    """On a fresh container, sweep any residual USD₮/CELO from the previous cycle's persisted
+    member wallets back to the agent and clear stale per-circle state, so a restart never strands
+    funds or resumes a broken circle. Mainnet + demo-rotation only; best-effort, never blocks boot.
+    Effective only when AJOAI_SEED_STATE points at a persistent volume (else the state is fresh)."""
+    if settings.chain != "mainnet" or float(os.getenv("AJOAI_DEMO_ROTATION_HOURS", "0")) <= 0:
+        return
+    try:
+        from scripts.mainnet_seed import Seeder
+        sd = Seeder()
+        sd.log = log
+        swept = sd.recover_and_reset()
+        if swept.get("txs"):
+            log.info("startup_recover_done", usdtReturned=str(swept.get("usdt")))
+    except Exception as e:  # noqa: BLE001 — recovery is best-effort, never block startup
+        log.warning("startup_recover_error", error=str(e))
 
 
 def main() -> None:
@@ -198,6 +222,7 @@ def main() -> None:
             coalesce=True,
         )
         _schedule_demo_rotation(sched, settings, chain, log)
+        _startup_recover(settings, log)
         try:
             sched.start()
         except (KeyboardInterrupt, SystemExit):
