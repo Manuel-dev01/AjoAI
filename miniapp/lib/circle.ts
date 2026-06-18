@@ -30,6 +30,8 @@ export function useCircle(address?: Addr) {
       { ...c, functionName: "membersLength" },
       { ...c, functionName: "penaltyPool" },
       { ...c, functionName: "organizer" },
+      { ...c, functionName: "period" },
+      { ...c, functionName: "parkedAmount" },
     ],
   });
   const r = data?.map((d) => d.result);
@@ -60,6 +62,8 @@ export function useCircle(address?: Addr) {
     membersLength: r?.[8] as bigint | undefined,
     penaltyPool: r?.[9] as bigint | undefined,
     organizer: r?.[10] as Addr | undefined,
+    period: r?.[11] as bigint | undefined,
+    parkedAmount: r?.[12] as bigint | undefined,
     recipient: roundData?.[0]?.result as Addr | undefined,
     windowClose: roundData?.[1]?.result as bigint | undefined,
     graceClose: roundData?.[2]?.result as bigint | undefined,

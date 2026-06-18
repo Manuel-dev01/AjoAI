@@ -15,7 +15,8 @@ import { Sheet } from "@/components/Sheet";
 import { useCeloWrite, friendlyTxError } from "@/lib/tx";
 import { circleAbi, erc20Abi, STATE_NAMES } from "@/lib/abi";
 import { useCircle, useToken, useMembers, useMyStatus, useCircleActivity, type ActivityEvent } from "@/lib/circle";
-import { fmtAmount, short } from "@/lib/format";
+import { fmtAmount, fmtCompact, short } from "@/lib/format";
+import { SIM_APY_BPS, apyLabel, projectedYield, secondsUntil, periodLabel } from "@/lib/yield";
 import { explorerAddr, FAUCETABLE, EXPLORER_NAME } from "@/lib/chain";
 import { getName } from "@/lib/names";
 
@@ -121,6 +122,8 @@ function CircleView({ address }: { address: `0x${string}` }) {
               <div className="nx">{c.recipient ? `Next payout · ${short(c.recipient)}` : "—"}</div>
             </div>
 
+            <YieldCard c={c} symbol={symbol} decimals={decimals} />
+
             {members.map((m) => {
               const isMe = m.address.toLowerCase() === my.me?.toLowerCase();
               const isRecipient = c.recipient && m.address.toLowerCase() === c.recipient.toLowerCase();
@@ -197,6 +200,41 @@ function CircleView({ address }: { address: `0x${string}` }) {
         {tab === "ask" && <AskAgent address={address} member={my.me} />}
       </div>
     </>
+  );
+}
+
+// Per-circle "Yield & idle funds" — the idle pot earns ~5% APY in a low-risk lending venue
+// (Aave V3 on Celo, simulated) between payouts. Shows the APY, the per-round projected yield, and —
+// while funds are actually parked — what they'll earn before this round's payout. Specific to THIS
+// circle (its own pot, period and parked balance).
+function YieldCard({ c, symbol, decimals }: { c: CircleData; symbol: string; decimals: number }) {
+  const pot = c.pot ?? 0n;
+  if (pot === 0n) return null;
+  const parked = c.parkedAmount ?? 0n;
+  const perRound = projectedYield(pot, Number(c.period ?? 0n), SIM_APY_BPS);
+  return (
+    <div style={{ border: "2.5px solid var(--ink)", background: "var(--cream)", padding: "12px 14px", margin: "14px 0" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+        <span style={{ fontFamily: "var(--display)", fontWeight: 800, fontSize: 12.5, textTransform: "uppercase", letterSpacing: ".06em" }}>
+          Yield &amp; idle funds
+        </span>
+        <span style={{ fontFamily: "var(--display)", fontWeight: 800, fontSize: 13, color: "var(--green)", border: "2px solid var(--green)", padding: "1px 7px" }}>
+          {apyLabel()}
+        </span>
+      </div>
+      <Lrow k="Yield venue" v="Aave V3 on Celo · simulated" />
+      <Lrow k={`Projected yield / ${periodLabel(c.period)}`} v={fmtCompact(perRound, symbol, decimals)} vColor="var(--green)" />
+      {parked > 0n && (
+        <>
+          <Lrow k="Parked now" v={fmtCompact(parked, symbol, decimals)} />
+          <Lrow k="Earns before payout" v={fmtCompact(projectedYield(parked, secondsUntil(c.windowClose), SIM_APY_BPS), symbol, decimals)} vColor="var(--green)" />
+        </>
+      )}
+      <div className="muted" style={{ fontSize: 11, marginTop: 6, lineHeight: 1.4 }}>
+        The idle pot is parked in a low-risk lending venue between payouts and returned in full before
+        each rotation. Rate simulated (~5% APY, the Aave V3 Celo stablecoin range) until a live venue is wired.
+      </div>
+    </div>
   );
 }
 

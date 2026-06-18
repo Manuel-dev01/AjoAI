@@ -18,6 +18,11 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 CONFIG_DIR = REPO_ROOT / "config"
 ABI_DIR = CONFIG_DIR / "abi"
 
+# Simulated APY for parked idle funds — mirrors miniapp/lib/yield.ts SIM_APY_BPS. Modeled on
+# Aave V3 on Celo (stablecoin supply ~3–6%). LOUD simulation (CLAUDE.md §1.9) until a real
+# AaveYieldAdapter is wired (production path; needs a redeploy).
+SIM_YIELD_APY_BPS = 500  # 5.00%
+
 
 def _truthy(v: str | None) -> bool:
     return str(v).strip().lower() in {"1", "true", "yes", "on"}
