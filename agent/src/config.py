@@ -55,6 +55,20 @@ class Settings:
     def demo_circle(self) -> str | None:
         return self.addresses.get("deployments", {}).get("demoCircle")
 
+    @property
+    def erc8004_reputation(self) -> str | None:
+        """Canonical ERC-8004 Reputation Registry (8004scan feedback) — NOT reputation_ledger."""
+        return self.addresses.get("erc8004", {}).get("reputation")
+
+    @property
+    def agent_id(self) -> int | None:
+        """Registered ERC-8004 agentId for this chain (config/agent-id.<chain>.json)."""
+        try:
+            data = json.loads((CONFIG_DIR / f"agent-id.{self.chain}.json").read_text(encoding="utf-8"))
+            return int(data["agentId"])
+        except Exception:
+            return None
+
     def token(self, symbol: str) -> str | None:
         return self.addresses.get("tokens", {}).get(symbol)
 

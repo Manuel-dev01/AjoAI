@@ -152,10 +152,12 @@ class MetricsCollector:
     # ── internals ──
 
     def _logs(self, address: str, topics: list, from_block: int = 0) -> list:
-        """Fetch event logs in 10 000-block chunks (thirdweb/Ankr RPC limit)."""
+        """Fetch event logs in 1 000-block chunks (thirdweb/Ankr getLogs cap is 1 000
+        blocks; larger ranges fail with "Maximum allowed number of requested blocks is
+        1000", which silently dropped late-payment/yield events)."""
         start = from_block or self._from_block
         end = self.w3.eth.block_number
-        chunk = 10_000
+        chunk = 1_000
         all_logs: list = []
         while start <= end:
             to = min(start + chunk - 1, end)
