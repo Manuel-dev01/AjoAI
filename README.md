@@ -11,7 +11,7 @@ collecting contributions, executing the payout rotation, parking idle funds,
 enforcing defaults, and turning a completed circle into a portable savings-credit
 score.
 
-**[▶ Demo video](https://youtube.com/shorts/YYtcAh31yNA)**  ·  **[Live app](https://ajo-ai-tan.vercel.app/app)**  ·  **[Agent on 8004scan — agentId 9339](https://8004scan.io/agents/celo/9339)**  ·  **[Mainnet circle](https://celoscan.io/address/0x4D03D887c3bB293623A8aF842DB80B4680a5E11F)**
+**[▶ Demo video](https://youtube.com/shorts/YYtcAh31yNA)**  ·  **[Live app](https://ajo-ai-tan.vercel.app/app)**  ·  **[On-chain dashboard](https://ajo-ai-tan.vercel.app/dashboard)**  ·  **[Agent on 8004scan — agentId 9339](https://8004scan.io/agents/celo/9339)**  ·  **[Mainnet circle](https://celoscan.io/address/0x4D03D887c3bB293623A8aF842DB80B4680a5E11F)**
 
 ## How it works
 A rotating savings circle: a group each contributes a fixed amount every period,
