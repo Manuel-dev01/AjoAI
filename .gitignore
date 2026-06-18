@@ -54,6 +54,13 @@ TESTING.md
 .env.feedback
 agent/scripts/give_feedback.py
 
+# ─── Internal seeding / e2e tooling (not public project code) ───
+agent/scripts/mainnet_seed.py
+agent/scripts/submit_feedback.py
+agent/scripts/mainnet_e2e.py
+agent/src/feedback.py
+config/e2e_run.mainnet.json
+
 CLAUDE.md
 docs/DEMO.md
 docs/DEMO_SCRIPT.md
