@@ -98,6 +98,23 @@ A2A + MCP report healthy; email/DID are identifiers (not health-probed by design
   topping up USDm for gas. Frontend writes now pass explicit gas limits to dodge Celo's flaky
   `eth_estimateGas`, and revert reasons map to human copy (`friendlyTxError`).
 
+## Stats, dashboard & metrics architecture (2026-06-18)
+- **`/api/metrics` is snapshot-first and O(1)** (survives unbounded circle growth from the hourly
+  rotation). It serves the freshest **snapshot** (Vercel Blob → committed `public/data/metrics.json`,
+  imported at build time so it's always bundled) and overlays only two cheap live numbers
+  (`agentTxCount`, `circlesCreated`); every path is deadline-bounded, so it can never hang (the old
+  per-circle live enumeration caused 25s client timeouts). Shared logic in `miniapp/lib/metrics.ts`.
+- **Snapshot freshness:** the agent POSTs the full snapshot to `/api/metrics/refresh` each sweep
+  (`AJOAI_METRICS_INGEST_URL` + `CRON_SECRET`, authenticated) — the agent (Railway) and miniapp
+  (Vercel) are separate deployments, so HTTP ingest is the bridge. A **daily** Vercel cron is a backstop.
+- **Public dashboard** `/dashboard` (no wallet): global metrics + **recharts** (states donut, activity
+  bars, reputation split), themed to Market Blocks. Linked from the landing hero/nav.
+- **Personal stats** `/app/stats`: a connected wallet's cumulative stats across circles it created
+  **or** joined (`useMyStats` reuses `useMyCircles`).
+- **Deploy gotcha (learned):** Vercel **Hobby allows only DAILY crons** — a `*/15` schedule in
+  `vercel.json` makes Vercel **reject every deployment**. Keep `crons` at `0 0 * * *` (or Pro for
+  finer). This silently blocked all deploys for hours once.
+
 ## Yield & idle-funds hardening (2026-06-18)
 - Realistic capital-efficiency framing: AjoAI parks the idle pot between payouts at a **5% simulated
   APY** (`SIM_APY_BPS=500` in `miniapp/lib/yield.ts`, mirrored `SIM_YIELD_APY_BPS` in
