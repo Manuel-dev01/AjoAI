@@ -19,6 +19,9 @@ import {
 import { activeChain, CONTRACTS } from "@/lib/chain";
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
+// Build-time import of the committed snapshot — guaranteed to be in the serverless bundle even
+// when `public/` files aren't traced into the lambda, so we always have a non-empty floor.
+import committedSnapshot from "@/public/data/metrics.json";
 
 // ── viem client ────────────────────────────────────────────────────────────
 const RPC_URL = activeChain.testnet
@@ -79,6 +82,14 @@ export interface Metrics {
   timestamp: string;
   circlesCreated: number;
   [key: string]: unknown;
+}
+
+// Race a promise against a timeout so a slow/stuck dependency can never hang the request.
+export function withTimeout<T>(p: Promise<T>, ms: number, label = "timeout"): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<never>((_, reject) => setTimeout(() => reject(new Error(label)), ms)),
+  ]);
 }
 
 // ── small concurrency pool ───────────────────────────────────────────────
@@ -285,6 +296,26 @@ export async function readCallState(): Promise<CallState> {
   };
 }
 
+// ── cheap live overlay (O(1), used on every /api/metrics request) ─────────
+// Only the two headline numbers that must feel live — agent tx count and total circles —
+// each a single RPC call, so the request cost is independent of how many circles exist.
+export interface LiveOverlay {
+  agentTxCount: number;
+  circlesCreated: number;
+}
+export async function readLiveOverlay(): Promise<LiveOverlay | null> {
+  try {
+    const factory = CONTRACTS.circleFactory as Address;
+    const [tx, len] = await Promise.all([
+      client.getTransactionCount({ address: AGENT_ADDR }),
+      client.readContract({ address: factory, abi: factoryAbi, functionName: "allCirclesLength" }),
+    ]);
+    return { agentTxCount: Number(tx), circlesCreated: Number(len) };
+  } catch {
+    return null;
+  }
+}
+
 // ── full-history event aggregation (refresh job only) ─────────────────────
 // 1,000-block chunks (the thirdweb/Ankr getLogs cap) scanned with a bounded concurrency
 // pool. Best-effort: any failure degrades to zeros, never throws.
@@ -354,10 +385,11 @@ export async function readBlobSnapshot(): Promise<Metrics | null> {
   if (!process.env.BLOB_READ_WRITE_TOKEN) return null;
   try {
     const { list } = await import("@vercel/blob");
-    const { blobs } = await list({ prefix: BLOB_PATH });
+    // Hard timeouts so a slow/stuck Blob endpoint can never hang the request.
+    const { blobs } = await withTimeout(list({ prefix: BLOB_PATH }), 2500, "blob list timeout");
     const hit = blobs.find((b) => b.pathname === BLOB_PATH) ?? blobs[0];
     if (!hit) return null;
-    const res = await fetch(hit.url, { cache: "no-store" });
+    const res = await fetch(hit.url, { cache: "no-store", signal: AbortSignal.timeout(2500) });
     if (!res.ok) return null;
     return (await res.json()) as Metrics;
   } catch {
@@ -366,12 +398,14 @@ export async function readBlobSnapshot(): Promise<Metrics | null> {
 }
 
 export function readCommittedSnapshot(): Metrics | null {
+  // Prefer the on-disk file (may be newer if redeployed), else the build-time import (always
+  // bundled). One of these is always available, so a snapshot is never missing.
   try {
-    if (!existsSync(METRICS_FILE)) return null;
-    return JSON.parse(readFileSync(METRICS_FILE, "utf-8")) as Metrics;
+    if (existsSync(METRICS_FILE)) return JSON.parse(readFileSync(METRICS_FILE, "utf-8")) as Metrics;
   } catch {
-    return null;
+    /* fall through to the bundled copy */
   }
+  return (committedSnapshot as Metrics) ?? null;
 }
 
 // Freshest available snapshot: Blob (production, refreshed by cron) else committed file.

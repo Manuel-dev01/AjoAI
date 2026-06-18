@@ -75,11 +75,32 @@ def _sweep(agent, chain, log) -> None:
         from .config import REPO_ROOT
         collector = MetricsCollector(agent.s)
         snap = collector.collect()
+        payload = collector.frontend_payload(snap)
         out = REPO_ROOT / "miniapp" / "public" / "data" / "metrics.json"
         collector.export_json(snap, out, frontend=True)
         log.info("metrics_exported", path=str(out))
+        # Push to the miniapp so the live /api/metrics snapshot (Vercel Blob) stays fresh —
+        # the agent and miniapp are separate deployments, so an HTTP ingest is the bridge.
+        _push_metrics(payload, log)
     except Exception as e:  # noqa: BLE001 — never let metrics stall the sweep
         log.warning("metrics_export_error", error=str(e))
+
+
+def _push_metrics(payload: dict, log) -> None:
+    """Best-effort POST of the metrics snapshot to the miniapp's ingest endpoint. No-op unless
+    AJOAI_METRICS_INGEST_URL + CRON_SECRET are set; never raises."""
+    url = os.getenv("AJOAI_METRICS_INGEST_URL")
+    secret = os.getenv("CRON_SECRET")
+    if not url or not secret:
+        return
+    try:
+        import requests
+        r = requests.post(
+            url, json=payload, headers={"Authorization": f"Bearer {secret}"}, timeout=10
+        )
+        log.info("metrics_pushed", status=r.status_code)
+    except Exception as e:  # noqa: BLE001 — the push is best-effort
+        log.warning("metrics_push_error", error=str(e))
 
 
 def _demo_rotation(chain, log) -> None:

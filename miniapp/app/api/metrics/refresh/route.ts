@@ -4,6 +4,7 @@ import {
   aggregateEvents,
   assembleMetrics,
   writeBlobSnapshot,
+  type Metrics,
 } from "@/lib/metrics";
 
 // Cron target — recomputes the FULL metrics out of band (call-state + the unbounded
@@ -33,6 +34,29 @@ export async function GET(req: Request) {
     const metrics = assembleMetrics(call, ev);
     const stored = await writeBlobSnapshot(metrics);
     return NextResponse.json({ ok: true, stored, metrics });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+  }
+}
+
+// POST ingest — the hosted agent computes the full snapshot every sweep and pushes it here, so the
+// Blob stays near-real-time without depending on Vercel's cron frequency (Hobby throttles crons).
+// Requires the CRON_SECRET bearer (must be set; no open ingest).
+export async function POST(req: Request) {
+  const secret = process.env.CRON_SECRET;
+  if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+  try {
+    const body = (await req.json()) as Metrics;
+    // Minimal shape check — must look like a metrics snapshot, not arbitrary data.
+    if (!body || typeof body !== "object" || typeof body.circlesCreated !== "number") {
+      return NextResponse.json({ error: "invalid metrics payload" }, { status: 400 });
+    }
+    const metrics: Metrics = { ...body, timestamp: new Date().toISOString() };
+    const stored = await writeBlobSnapshot(metrics);
+    return NextResponse.json({ ok: true, stored });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
