@@ -98,6 +98,16 @@ A2A + MCP report healthy; email/DID are identifiers (not health-probed by design
   topping up USDm for gas. Frontend writes now pass explicit gas limits to dodge Celo's flaky
   `eth_estimateGas`, and revert reasons map to human copy (`friendlyTxError`).
 
+## Yield & idle-funds hardening (2026-06-18)
+- Realistic capital-efficiency framing: AjoAI parks the idle pot between payouts at a **5% simulated
+  APY** (`SIM_APY_BPS=500` in `miniapp/lib/yield.ts`, mirrored `SIM_YIELD_APY_BPS` in
+  `agent/src/config.py`) — the Aave V3 Celo stablecoin midpoint, loud-simulated. **Per-circle APY +
+  projected yield** card on the circle page (reads `parkedAmount`/`period`/`windowClose`), and a
+  "Capital efficiency — idle-fund yield" section on the dashboard. Demo can exercise real park/withdraw
+  via `AJOAI_SEED_PARK=true` (off by default). No contract change / no redeploy.
+- **Roadmap (needs a mainnet redeploy, deferred):** real `AaveYieldAdapter` (Aave V3 Celo) with
+  time-based accrual; a protocol **Treasury Reserve** (10–20% yield split) — both require new contracts.
+
 ## Known gap (future contract work)
 - A delinquent recipient who never cures **freezes the circle**: `triggerPayout` withholds and the agent
   waits indefinitely — there is no on-chain path to skip the slot and redistribute without `cure()`.

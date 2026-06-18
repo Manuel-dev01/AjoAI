@@ -30,6 +30,8 @@ export const circleAbi = [
   { type: "function", name: "contributedInRound", stateMutability: "view", inputs: [{ type: "uint256" }, { type: "address" }], outputs: [{ type: "bool" }] },
   { type: "function", name: "windowClose", stateMutability: "view", inputs: [{ type: "uint256" }], outputs: [{ type: "uint256" }] },
   { type: "function", name: "graceClose", stateMutability: "view", inputs: [{ type: "uint256" }], outputs: [{ type: "uint256" }] },
+  { type: "function", name: "parkedAmount", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
+  { type: "function", name: "yieldAdapter", stateMutability: "view", inputs: [], outputs: [{ type: "address" }] },
   // events
   { type: "event", name: "MemberJoined", inputs: [{ name: "member", type: "address", indexed: true }, { name: "deposit", type: "uint256", indexed: false }, { name: "slot", type: "uint256", indexed: false }] },
   { type: "event", name: "Contributed", inputs: [{ name: "member", type: "address", indexed: true }, { name: "round", type: "uint256", indexed: true }, { name: "amount", type: "uint256", indexed: false }, { name: "late", type: "bool", indexed: false }] },
@@ -38,6 +40,8 @@ export const circleAbi = [
   { type: "event", name: "PaidOut", inputs: [{ name: "recipient", type: "address", indexed: true }, { name: "round", type: "uint256", indexed: true }, { name: "pot", type: "uint256", indexed: false }] },
   { type: "event", name: "CircleStarted", inputs: [{ name: "startTime", type: "uint256", indexed: false }, { name: "slots", type: "uint256", indexed: false }] },
   { type: "event", name: "CircleDissolved", inputs: [] },
+  { type: "event", name: "IdleFundsParked", inputs: [{ name: "amount", type: "uint256", indexed: false }] },
+  { type: "event", name: "IdleFundsWithdrawn", inputs: [{ name: "principal", type: "uint256", indexed: false }, { name: "yieldAccrued", type: "uint256", indexed: false }] },
 ] as const;
 
 export const factoryAbi = [

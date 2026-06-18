@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { apyLabel } from "@/lib/yield";
 
 // Shared on-chain metrics types, fetch hook, formatters and Market-Blocks stat components — used by
 // the in-app stats page (/app/stats) and the public charts dashboard (/dashboard).
@@ -169,13 +170,15 @@ export function MetricsDashboard({ data }: { data: Metrics }) {
         <Row k="Negative" v={`-${data.negativeSignals}`} color="var(--clay)" />
       </Section>
 
-      {Number(data.totalYield ?? 0) > 0 && (
-        <Section title="Idle-fund yield (simulated)">
-          <Row k="Total yield accrued" v={`${fmt(data.totalYield!)} tokens`} color="var(--green)" />
-          <Row k="Deposits" v={data.yieldDeposits ?? 0} />
-          <Row k="Withdrawals" v={data.yieldWithdrawals ?? 0} />
-        </Section>
-      )}
+      <Section title="Capital efficiency — idle-fund yield">
+        <Row k="Strategy" v={`${apyLabel()} · Aave V3 Celo (sim)`} color="var(--green)" />
+        <Row
+          k="Yield earned"
+          v={`${fmt(data.totalYield ?? "0")} tokens`}
+          color={Number(data.totalYield ?? 0) > 0 ? "var(--green)" : undefined}
+        />
+        <Row k="Idle-fund parks" v={data.yieldDeposits ?? 0} />
+      </Section>
     </>
   );
 }
