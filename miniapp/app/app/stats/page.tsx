@@ -31,6 +31,7 @@ interface Metrics {
   yieldDeposits?: number;
   yieldWithdrawals?: number;
   totalYield?: string; // wei string (simulated)
+  stale?: boolean; // served from a snapshot (live read unavailable)
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────
@@ -146,7 +147,7 @@ export default function StatsPage() {
               {copied ? "Copied ✓" : "Copy stats for tweet"}
             </button>
             <div className="muted" style={{ marginTop: 8, textAlign: "center" }}>
-              Updated {timeAgo(data.timestamp)} ·{" "}
+              {data.stale ? "Snapshot · " : "Updated "}{timeAgo(data.timestamp)} ·{" "}
               <span style={{ cursor: "pointer", textDecoration: "underline" }} onClick={load}>
                 refresh
               </span>

@@ -25,4 +25,6 @@ services:
       - key: LOG_LEVEL
         value: info
       - key: AJOAI_DEMO_ROTATION_HOURS
-        value: "2"  # Run a full autonomous demo rotation every 2 hours for on-chain activity
+        value: "1"  # Run a full autonomous demo rotation every hour for on-chain activity
+        # NOTE: the live deployment runs on Railway (this Render blueprint is an alt-host doc);
+        # keep this in sync with the Railway AJOAI_DEMO_ROTATION_HOURS value.
