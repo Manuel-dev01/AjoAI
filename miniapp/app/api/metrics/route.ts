@@ -29,9 +29,12 @@ export async function GET() {
   let data: Metrics;
   if (snap) {
     // Base on the snapshot; overlay the two headline numbers when the live read succeeded.
+    // `timestamp` is the response time, but `snapshotAt` preserves when the snapshot itself was
+    // last written (agent ingest / cron) so the UI can show real freshness — when the agent stops
+    // pushing, snapshotAt stops advancing even though the headline numbers stay live.
     data = overlay
-      ? { ...snap, ...overlay, timestamp: new Date().toISOString() }
-      : { ...snap, stale: true };
+      ? { ...snap, ...overlay, snapshotAt: snap.timestamp, timestamp: new Date().toISOString() }
+      : { ...snap, snapshotAt: snap.timestamp, stale: true };
   } else if (overlay) {
     // No snapshot at all (extremely unlikely — the committed copy is bundled): minimal live shell.
     data = {

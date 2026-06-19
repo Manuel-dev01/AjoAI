@@ -15,7 +15,7 @@ import { Sheet } from "@/components/Sheet";
 import { useCeloWrite, friendlyTxError } from "@/lib/tx";
 import { circleAbi, erc20Abi, STATE_NAMES } from "@/lib/abi";
 import { useCircle, useToken, useMembers, useMyStatus, useCircleActivity, type ActivityEvent } from "@/lib/circle";
-import { fmtAmount, fmtCompact, short } from "@/lib/format";
+import { fmtAmount, fmtCompact, short, whenLabel, frequencyLabel, durationLabel } from "@/lib/format";
 import { SIM_APY_BPS, apyLabel, projectedYield, secondsUntil, periodLabel } from "@/lib/yield";
 import { explorerAddr, FAUCETABLE, EXPLORER_NAME } from "@/lib/chain";
 import { getName } from "@/lib/names";
@@ -119,8 +119,11 @@ function CircleView({ address }: { address: `0x${string}` }) {
             <div className="dash-top">
               <RingMark variant="full" />
               <div className="rnd">Round {c.round?.toString() ?? "…"} of {c.slots ?? "…"}</div>
-              <div className="nx">{c.recipient ? `Next payout · ${short(c.recipient)}` : "—"}</div>
+              <div className="nx">{c.recipient ? `Next payout · ${short(c.recipient)} · due ${whenLabel(c.windowClose)}` : "—"}</div>
             </div>
+
+            <Lrow k="Contribution" v={`${fmtAmount(c.contribution, symbol, decimals)} ${frequencyLabel(c.period)}`} />
+            <Lrow k="Circle runs for" v={durationLabel(c.period, c.slots)} />
 
             <YieldCard c={c} symbol={symbol} decimals={decimals} />
 
@@ -286,7 +289,8 @@ function FormingView({ address, c, my, members, name, symbol, decimals, refetch 
       <InvitePanel address={address} name={name} slots={c.slots} members={members} />
 
       <Lrow k="Members" v={`${c.membersLength?.toString() ?? "…"} / ${c.slots ?? "…"}`} />
-      <Lrow k="Contribution" v={fmtAmount(c.contribution, symbol, decimals)} />
+      <Lrow k="Contribution" v={`${fmtAmount(c.contribution, symbol, decimals)} ${frequencyLabel(c.period)}`} />
+      <Lrow k="Circle runs for" v={durationLabel(c.period, c.slots)} />
       <Lrow k="Security deposit" v={fmtAmount(c.deposit, symbol, decimals)} />
       {isOrganizer && my.isMember === false && !full && (
         <div className="banner" style={{ background: "var(--ochre)", color: "var(--ink)", borderColor: "var(--ink)", marginTop: 12 }}>
@@ -444,6 +448,14 @@ function PayTab({ address, c, symbol, decimals, my }: { address: `0x${string}`; 
       <div className="contrib"><div className="a"><small>{symbol}</small>{fmtAmount(c.contribution, "", decimals)}</div><div className="l">Your contribution</div></div>
       <Lrow k="From" v={`MiniPay · ${symbol}`} />
       <Lrow k="Goes to" v={`${short(c.recipient)}'s payout`} vColor="var(--clay-d)" />
+      {inGrace ? (
+        <>
+          <Lrow k="Grace ends" v={whenLabel(c.graceClose)} vColor="var(--clay-d)" />
+          <Lrow k="Late fee" v={`${(c.penaltyBps ?? 500) / 100}% of your contribution`} vColor="var(--clay-d)" />
+        </>
+      ) : (
+        <Lrow k="Window closes" v={whenLabel(c.windowClose)} />
+      )}
       {error && <p className="banner">{friendlyTxError(error)}</p>}
       <div style={{ marginTop: 14, display: "grid", gap: 9 }}>
         {!isConnected ? <ConnectButton /> : lowBalance ? (

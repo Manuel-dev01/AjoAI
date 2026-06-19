@@ -86,29 +86,65 @@ def _sweep(agent, chain, log) -> None:
         log.warning("metrics_export_error", error=str(e))
 
 
+# Consecutive metrics-push failures — so a SILENT ingest break (the exact failure that froze the
+# dashboard Blob for days) escalates from a swallowed warning to a loud, counted error.
+_push_fail_streak = 0
+_PUSH_FAIL_LOUD_AT = 3
+
+
 def _push_metrics(payload: dict, log) -> None:
-    """Best-effort POST of the metrics snapshot to the miniapp's ingest endpoint. No-op unless
-    AJOAI_METRICS_INGEST_URL + CRON_SECRET are set; never raises."""
+    """Best-effort POST of the metrics snapshot to the miniapp's ingest endpoint. Never raises —
+    but loudly surfaces misconfiguration and repeated failures so a frozen dashboard is noticed."""
+    global _push_fail_streak
     url = os.getenv("AJOAI_METRICS_INGEST_URL")
     secret = os.getenv("CRON_SECRET")
     if not url or not secret:
+        # Not a transient error — config is missing. The dashboard breakdown will silently freeze.
+        log.warning(
+            "metrics_push_disabled",
+            detail="AJOAI_METRICS_INGEST_URL and/or CRON_SECRET unset — dashboard snapshot will not refresh",
+            hasUrl=bool(url), hasSecret=bool(secret),
+        )
         return
     try:
         import requests
         r = requests.post(
             url, json=payload, headers={"Authorization": f"Bearer {secret}"}, timeout=10
         )
-        log.info("metrics_pushed", status=r.status_code)
-    except Exception as e:  # noqa: BLE001 — the push is best-effort
-        log.warning("metrics_push_error", error=str(e))
+        if 200 <= r.status_code < 300:
+            _push_fail_streak = 0
+            log.info("metrics_pushed", status=r.status_code)
+            return
+        # A non-2xx (e.g. 401 secret mismatch) was previously logged as a "success" — treat as failure.
+        _push_fail_streak += 1
+        _log = log.error if _push_fail_streak >= _PUSH_FAIL_LOUD_AT else log.warning
+        _log("metrics_push_rejected", status=r.status_code, streak=_push_fail_streak,
+             body=r.text[:200])
+    except Exception as e:  # noqa: BLE001 — the push is best-effort, but track the streak
+        _push_fail_streak += 1
+        _log = log.error if _push_fail_streak >= _PUSH_FAIL_LOUD_AT else log.warning
+        _log("metrics_push_error", error=str(e), streak=_push_fail_streak)
 
 
 def _demo_rotation(chain, log) -> None:
     """Operate one full self-funded circle end to end (real USD₮, recovered each cycle; only CELO
     gas is spent). Runs on the SAME single worker thread as the sweep, so the two never send txs
     concurrently on the shared agent key. Any failure is logged, never fatal."""
-    if chain.gas_balance_wei() < LOW_GAS_WEI:
-        log.warning("demo_rotation_skip_low_gas", balanceCELO=round(chain.gas_balance_wei() / 1e18, 4))
+    # A full cycle funds each member's gas (GAS_TOPUP = 0.03 + 0.012*slots CELO) AND spends the
+    # agent's own gas on create/start/contribute/payout/finalize. The old flat 0.05 CELO guard let
+    # the agent START a ~0.6+ CELO cycle it couldn't finish — stranding half-formed "Forming 0/N"
+    # circles and spamming insufficient-funds errors. Require enough for a WHOLE cycle (env-overridable).
+    slots = int(os.getenv("AJOAI_DEMO_SLOTS", "4"))
+    cycle_celo = (0.03 + 0.012 * slots) * slots + 0.35  # member top-ups + agent's own rotate/finalize gas
+    min_gas_wei = int(float(os.getenv("AJOAI_DEMO_MIN_CELO", str(round(cycle_celo, 3)))) * 1e18)
+    bal = chain.gas_balance_wei()
+    if bal < min_gas_wei:
+        log.warning(
+            "demo_rotation_skip_low_gas",
+            balanceCELO=round(bal / 1e18, 4),
+            neededCELO=round(min_gas_wei / 1e18, 4),
+            detail="top up the agent with CELO to resume demo rotations",
+        )
         return
     try:
         from scripts.mainnet_seed import seed_once
@@ -228,7 +264,10 @@ def main() -> None:
         return
 
     if cmd == "run-all":
-        interval = int(sys.argv[2]) if len(sys.argv) > 2 else 30
+        # Interval: explicit arg wins, else env (AJOAI_SWEEP_SECONDS), else 120s. With many circles a
+        # single sweep takes minutes, so a 30s tick just floods "max instances reached" skips — env-
+        # tunable so the hosted cadence can be raised WITHOUT a rebuild.
+        interval = int(sys.argv[2]) if len(sys.argv) > 2 else int(os.getenv("AJOAI_SWEEP_SECONDS", "120"))
         agent = Agent(settings, chain)
         log.info("serve_all_start", intervalSeconds=interval, factory=settings.factory)
         # One worker thread so every job serialises and never sends two txs concurrently on the

@@ -63,3 +63,35 @@ export function whenLabel(ts?: bigint): string {
   if (diff < day) return `${Math.max(1, Math.round(diff / 3_600_000))}h`;
   return `${Math.round(diff / day)}d`;
 }
+
+// A duration in seconds → a short human span ("10 min", "7 days", "8 weeks", "3 months").
+// Picks the largest unit that divides cleanly-ish so a weekly circle reads "7 days"→"1 week".
+export function secondsToHuman(s: number): string {
+  if (!s || s <= 0) return "—";
+  const min = 60, hour = 3_600, day = 86_400, week = 604_800, month = 2_592_000, year = 31_536_000;
+  const plur = (n: number, unit: string) => `${n} ${unit}${n === 1 ? "" : "s"}`;
+  if (s >= year) return plur(Math.round(s / year), "year");
+  if (s >= month) return plur(Math.round(s / month), "month");
+  if (s >= week) return plur(Math.round(s / week), "week");
+  if (s >= day) return plur(Math.round(s / day), "day");
+  if (s >= hour) return plur(Math.round(s / hour), "hour");
+  return plur(Math.max(1, Math.round(s / min)), "min");
+}
+
+// How often a member contributes, e.g. "every 10 min", "weekly", "monthly", "every 7 days".
+// Maps the create-flow's known FREQS exactly; falls back to "every {secondsToHuman}".
+export function frequencyLabel(period?: bigint): string {
+  if (!period || period === 0n) return "each round";
+  const s = Number(period);
+  if (s === 600) return "every 10 min";
+  if (s === 900) return "every 15 min";
+  if (s === 604_800) return "weekly";
+  if (s === 2_592_000) return "monthly";
+  return `every ${secondsToHuman(s)}`;
+}
+
+// Total time a circle runs = period × slots (one round per member). e.g. "~8 weeks".
+export function durationLabel(period?: bigint, slots?: number): string {
+  if (!period || period === 0n || !slots || slots <= 0) return "—";
+  return `~${secondsToHuman(Number(period) * slots)}`;
+}

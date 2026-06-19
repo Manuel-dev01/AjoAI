@@ -10,6 +10,7 @@ import { factoryAbi } from "@/lib/abi";
 import { FACTORY } from "@/lib/circle";
 import { TOKEN_LIST } from "@/lib/chain";
 import { setName } from "@/lib/names";
+import { frequencyLabel, durationLabel } from "@/lib/format";
 
 const FREQS = [
   { label: "10 min", period: 600 }, // test: agent rotates within minutes
@@ -57,6 +58,13 @@ export default function CreateCircle() {
   }
 
   const busy = isPending || (!!txHash && !receipt);
+
+  // Live, plain-language recap so the form is a confirmable summary, not a silent set of toggles.
+  const sym = TOKEN_OPTS[tok].sym;
+  const members = SIZES[size];
+  const amt = Number(amount || 0);
+  const periodBig = BigInt(FREQS[freq].period);
+  const recap = `Everyone pays ${amt.toLocaleString()} ${sym} ${frequencyLabel(periodBig)} · ${members} members · runs ${durationLabel(periodBig, members)} · you receive ${(amt * members).toLocaleString()} ${sym} on your turn · late fee 5%.`;
 
   return (
     <>
@@ -116,9 +124,12 @@ export default function CreateCircle() {
 
         <div className="fld">
           <div className="fl">Payout order</div>
-          <div className="fi" style={{ fontSize: 13 }}>Random &amp; locked<span className="cur">fair</span></div>
+          <div className="fi" style={{ fontSize: 13 }}>Join order · locked<span className="cur">first in, first paid</span></div>
         </div>
 
+        <div className="invite" style={{ marginTop: 4 }}>
+          <div className="meta" style={{ fontWeight: 600, lineHeight: 1.5 }}>{recap}</div>
+        </div>
         <p className="muted">A one-round security deposit ({amount || 0} {TOKEN_OPTS[tok].sym}) is posted by each member on joining. It covers a missed round and is returned on clean completion.</p>
         {error && <p className="banner">{friendlyTxError(error)}</p>}
       </div>

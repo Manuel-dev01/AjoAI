@@ -6,9 +6,9 @@ import { useAccount, useConnect } from "wagmi";
 import { RingMark } from "@/components/RingMark";
 import { ConnectButton } from "@/components/ui";
 import { useInMiniPay } from "@/app/providers";
-import { useMyCircles, useCircle, useScore } from "@/lib/circle";
+import { useMyCircles, useCircle, useToken, useScore } from "@/lib/circle";
 import { CONTRACTS } from "@/lib/chain";
-import { short } from "@/lib/format";
+import { short, fmtAmount, frequencyLabel } from "@/lib/format";
 import { STATE_NAMES } from "@/lib/abi";
 import { getName, getUserName, setUserName } from "@/lib/names";
 
@@ -193,13 +193,15 @@ function Dashboard({ address, name, onEdit }: { address: `0x${string}`; name: st
 }
 
 function CircleCard({ address, alt, isOrganizer, isMember }: { address: `0x${string}`; alt: boolean; isOrganizer?: boolean; isMember?: boolean }) {
-  const { state, round, slots, roundsPaid, recipient } = useCircle(address);
+  const { state, round, slots, roundsPaid, contribution, token, period } = useCircle(address);
+  const { symbol, decimals } = useToken(token);
   const pct = slots ? (Number(roundsPaid ?? 0n) / slots) * 100 : 0;
   const stateName = state !== undefined ? STATE_NAMES[state] : "…";
   const live = state === 1;
   const forming = state === 0;
   const title = getName(address) || `Circle ${short(address)}`;
   const role = isOrganizer && !isMember ? "You organise" : isOrganizer ? "Organiser" : "Member";
+  const terms = symbol && contribution !== undefined ? `${fmtAmount(contribution, symbol, decimals)} ${frequencyLabel(period)}` : "…";
   return (
     <Link href={`/app/circle/${address}`} className={`ccard${alt ? " alt" : ""}`} style={{ display: "block" }}>
       <div className="top">
@@ -210,6 +212,9 @@ function CircleCard({ address, alt, isOrganizer, isMember }: { address: `0x${str
       <div className="meta">
         <span>{forming ? "Forming · invite members" : `Round ${round?.toString() ?? "…"} of ${slots ?? "…"}`}</span>
         <span>{role}</span>
+      </div>
+      <div className="meta">
+        <span>{terms}</span>
       </div>
       <div className="bar"><i style={{ width: `${forming ? 0 : pct}%` }} /></div>
     </Link>

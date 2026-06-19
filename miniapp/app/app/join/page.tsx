@@ -9,7 +9,7 @@ import { useCeloWrite } from "@/lib/tx";
 import { circleAbi, erc20Abi } from "@/lib/abi";
 import { useCircle, useToken } from "@/lib/circle";
 import { FaucetButton, useTokenBalance } from "@/components/Faucet";
-import { fmtAmount, short } from "@/lib/format";
+import { fmtAmount, short, frequencyLabel, durationLabel } from "@/lib/format";
 import { parseInviteInput } from "@/lib/code";
 import { getName, setName } from "@/lib/names";
 import { FAUCETABLE } from "@/lib/chain";
@@ -67,7 +67,7 @@ function JoinInner() {
 }
 
 function Preview({ circle, name, me, isConnected, onJoined }: { circle: `0x${string}`; name?: string; me?: `0x${string}`; isConnected: boolean; onJoined: () => void }) {
-  const { slots, membersLength, contribution, deposit, pot, token } = useCircle(circle);
+  const { slots, membersLength, contribution, deposit, pot, token, period } = useCircle(circle);
   const { symbol, decimals } = useToken(token);
   const { write, isPending, error } = useCeloWrite();
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>();
@@ -102,12 +102,15 @@ function Preview({ circle, name, me, isConnected, onJoined }: { circle: `0x${str
       <div className="invite">
         <RingMark variant="full" />
         <div className="nm">{name || `Circle ${short(circle)}`}</div>
-        <div className="meta">{slots ?? "…"} members · {fmtAmount(contribution, symbol || "…", decimals)} / round</div>
+        <div className="meta">{slots ?? "…"} members · {fmtAmount(contribution, symbol || "…", decimals)} {frequencyLabel(period)}</div>
       </div>
       <Lrow k="Members so far" v={`${membersLength?.toString() ?? "…"} / ${slots ?? "…"}`} />
       <Lrow k="You'd join as" v={joinIndex ? `Member #${joinIndex}` : "…"} />
+      <Lrow k="You contribute" v={`${fmtAmount(contribution, symbol, decimals)} ${frequencyLabel(period)}`} />
+      <Lrow k="Circle runs for" v={durationLabel(period, slots)} />
       <Lrow k="Security deposit" v={fmtAmount(deposit, symbol, decimals)} />
       <Lrow k="You receive on your turn" v={fmtAmount(pot, symbol, decimals)} vColor="var(--clay-d)" />
+      <Lrow k="Your payout round" v={joinIndex && slots ? `Round ${joinIndex} of ${slots}` : "…"} />
       {error && <p className="banner">{error.message.slice(0, 120)}</p>}
 
       <div style={{ marginTop: 16, display: "grid", gap: 9 }}>

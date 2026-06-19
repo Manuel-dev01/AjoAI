@@ -30,6 +30,7 @@ ENV CHAIN=mainnet \
 
 WORKDIR /app/agent
 
-# Sweep every factory circle every 30s: auto-start full Forming circles, trigger Active ones.
-# Idempotent + single-instance safe. The agent pays gas in CELO — keep the account funded.
-CMD ["python", "-m", "src.main", "run-all", "30"]
+# Sweep every factory circle: auto-start full Forming circles, trigger Active ones. Idempotent +
+# single-instance safe. Interval is env-driven (AJOAI_SWEEP_SECONDS, default 120s) so it can be tuned
+# without a rebuild. The agent pays gas in CELO — keep the account funded.
+CMD ["python", "-m", "src.main", "run-all"]
