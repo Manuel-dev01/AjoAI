@@ -16,6 +16,7 @@ export const circleAbi = [
   { type: "function", name: "deposit", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
   { type: "function", name: "token", stateMutability: "view", inputs: [], outputs: [{ type: "address" }] },
   { type: "function", name: "period", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
+  { type: "function", name: "penaltyBps", stateMutability: "view", inputs: [], outputs: [{ type: "uint16" }] },
   { type: "function", name: "penaltyPool", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
   { type: "function", name: "roundsPaid", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
   { type: "function", name: "membersLength", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },

@@ -31,6 +31,7 @@ export interface Metrics {
   yieldWithdrawals?: number;
   totalYield?: string; // wei string (simulated)
   stale?: boolean; // served from a snapshot (live overlay unavailable)
+  snapshotAt?: string; // when the snapshot itself was last written (agent ingest / cron)
 }
 
 // ── formatters ─────────────────────────────────────────────────────────────
@@ -126,11 +127,35 @@ export function Hero({ label, value, sub }: { label: string; value: React.ReactN
   );
 }
 
+// Honest freshness signal: the snapshot's own write time (snapshotAt), not the request time.
+// When the agent stops pushing, this stops advancing even though the headline numbers stay live —
+// so a paused agent is visible instead of masquerading as fresh.
+function Freshness({ at }: { at?: string }) {
+  const ms = at ? Date.parse(at) : NaN;
+  if (Number.isNaN(ms)) return null;
+  const ageMin = Math.max(0, (Date.now() - ms) / 60_000);
+  const stale = ageMin > 90; // agent sweeps every ~30s + daily cron backstop — >90m means it's down
+  const rel =
+    ageMin < 1 ? "just now" : ageMin < 60 ? `${Math.round(ageMin)}m ago`
+      : ageMin < 1440 ? `${Math.round(ageMin / 60)}h ago` : `${Math.round(ageMin / 1440)}d ago`;
+  return (
+    <div style={{
+      display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 700,
+      padding: "3px 9px", marginBottom: 10, border: "2px solid var(--ink)",
+      color: stale ? "var(--ink)" : "var(--green)", background: stale ? "var(--ochre)" : "transparent",
+    }}>
+      <span style={{ width: 7, height: 7, borderRadius: "50%", background: stale ? "var(--ink)" : "var(--green)" }} />
+      {stale ? `⚠ Last synced ${rel} — agent may be paused` : `Synced ${rel}`}
+    </div>
+  );
+}
+
 // The numbers-only dashboard (shared by /app/stats and the public dashboard's text panel).
 export function MetricsDashboard({ data }: { data: Metrics }) {
   const activeNow = data.circlesCreated - data.completed - data.defaulted - data.dissolved;
   return (
     <>
+      <Freshness at={data.snapshotAt} />
       <Hero
         label="Total value processed"
         value={
