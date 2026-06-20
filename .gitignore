@@ -55,6 +55,11 @@ TESTING.md
 agent/scripts/give_feedback.py
 
 # ─── Internal seeding / e2e tooling (not public project code) ───
+# DEPLOY NOTE: mainnet_seed.py + feedback.py are required by the agent at RUNTIME (demo rotation →
+# ERC-8004 giveFeedback / 8004scan). `railway up` respects THIS file (not .railwayignore), so it
+# excludes them from the image and the demo rotation ImportErrors on boot. To deploy: temporarily
+# comment out the mainnet_seed.py + feedback.py lines below, run `railway up`, then restore. See
+# agent/DEPLOY.md. Keep them out of the public GitHub repo — do NOT `git add` them.
 agent/scripts/mainnet_seed.py
 agent/scripts/submit_feedback.py
 agent/scripts/mainnet_e2e.py
@@ -70,3 +75,5 @@ docs/STATE_MACHINE.md
 docs/PITCH.md
 docs/STACK.md
 docs/STATUS.md
+
+.vercel

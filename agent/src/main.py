@@ -112,8 +112,21 @@ def _push_metrics(payload: dict, log) -> None:
             url, json=payload, headers={"Authorization": f"Bearer {secret}"}, timeout=10
         )
         if 200 <= r.status_code < 300:
+            # A 2xx with stored=false means auth passed but the Blob write was a no-op
+            # (BLOB_READ_WRITE_TOKEN unset on Vercel) — the dashboard still freezes. Treat as failure.
+            stored = None
+            try:
+                stored = r.json().get("stored")
+            except Exception:  # noqa: BLE001 — body may not be JSON; fall through to "looks ok"
+                pass
+            if stored is False:
+                _push_fail_streak += 1
+                _log = log.error if _push_fail_streak >= _PUSH_FAIL_LOUD_AT else log.warning
+                _log("metrics_push_not_stored", status=r.status_code, streak=_push_fail_streak,
+                     detail="ingest returned 200 but did not persist — set BLOB_READ_WRITE_TOKEN on Vercel")
+                return
             _push_fail_streak = 0
-            log.info("metrics_pushed", status=r.status_code)
+            log.info("metrics_pushed", status=r.status_code, stored=stored)
             return
         # A non-2xx (e.g. 401 secret mismatch) was previously logged as a "success" — treat as failure.
         _push_fail_streak += 1
