@@ -118,6 +118,7 @@ class MetricsCollector:
             snap.circles_created = circles_created if circles_created is not None else len(views)
 
         members: set[str] = set()
+        decimals_cache: dict[str, int] = {}
         for v in views:
             # State tally: 0 Forming · 1 Active · 2 Completed · 3 Defaulted · 4 Dissolved.
             if v.state == 0:
@@ -135,9 +136,15 @@ class MetricsCollector:
             # (all slots contribute) and one pot out (the recipient). Mirrors readCallState.
             if v.slots > 0 and v.intended_pot > 0:
                 snap.contribution_count += v.rounds_paid * v.slots
-                snap.total_contributions_wei += v.rounds_paid * v.intended_pot
                 snap.payout_count += v.rounds_paid
-                snap.total_payouts_wei += v.rounds_paid * v.intended_pot
+                # Circles use different-decimal tokens (USDT/USDC 6, USDm/NGNm 18). Summing raw wei
+                # across them is meaningless AND the dashboard formats totals as 18-dec, so a 6-dec
+                # USDT pot shows as 0.00. Normalize every pot to an 18-dec equivalent so the sum is
+                # both correct (whole-token magnitudes) and display-ready.
+                scale = 10 ** max(0, 18 - self._token_decimals(v.token, decimals_cache))
+                pot18 = v.rounds_paid * v.intended_pot * scale
+                snap.total_contributions_wei += pot18
+                snap.total_payouts_wei += pot18
 
             for m in v.members:
                 members.add(m.lower())
@@ -197,6 +204,28 @@ class MetricsCollector:
         p.write_text(json.dumps(data, indent=2), encoding="utf-8")
 
     # ── internals ──
+
+    _DECIMALS_ABI = [
+        {"inputs": [], "name": "decimals", "outputs": [{"type": "uint8"}],
+         "stateMutability": "view", "type": "function"}
+    ]
+
+    def _token_decimals(self, token_addr: str, cache: dict[str, int]) -> int:
+        """ERC20 decimals for a circle's token, cached per address (≤ a few unique tokens, so
+        ≤ a few extra calls). Defaults to 18 on any failure (the no-scaling case)."""
+        if not token_addr:
+            return 18
+        if token_addr in cache:
+            return cache[token_addr]
+        try:
+            d = self.w3.eth.contract(
+                address=Web3.to_checksum_address(token_addr), abi=self._DECIMALS_ABI
+            ).functions.decimals().call()
+        except Exception as e:  # noqa: BLE001 — loud, never silent
+            log.warning("metrics_token_decimals_error", token=token_addr, error=str(e))
+            d = 18
+        cache[token_addr] = d
+        return d
 
     def _collect_reputation(self, snap: MetricsSnapshot) -> None:
         """ERC-8004 signals from ReputationLedger.scoreOf(agent) — a single state call, not a

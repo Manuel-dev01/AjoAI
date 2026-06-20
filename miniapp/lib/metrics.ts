@@ -45,7 +45,10 @@ const circleAbi = [
   parseAbiItem("function contribution() view returns (uint256)"),
   parseAbiItem("function membersLength() view returns (uint256)"),
   parseAbiItem("function members(uint256) view returns (address)"),
+  parseAbiItem("function token() view returns (address)"),
 ] as const;
+
+const erc20DecimalsAbi = [parseAbiItem("function decimals() view returns (uint8)")] as const;
 
 const scoreOfAbi = [
   parseAbiItem(
@@ -186,6 +189,7 @@ export async function readCallState(): Promise<CallState> {
       { address: addr, abi: circleAbi, functionName: "roundsPaid" as const },
       { address: addr, abi: circleAbi, functionName: "contribution" as const },
       { address: addr, abi: circleAbi, functionName: "membersLength" as const },
+      { address: addr, abi: circleAbi, functionName: "token" as const },
     ]);
 
     const stateResults = await batchMulticall(stateContracts);
@@ -197,10 +201,11 @@ export async function readCallState(): Promise<CallState> {
       roundsPaid: number;
       contribution: bigint;
       membersLen: number;
+      token: string;
     }[] = [];
 
     for (let i = 0; i < circles.length; i++) {
-      const base = i * 5;
+      const base = i * 6;
       const getNum = (idx: number, def: number) => {
         const r = stateResults[base + idx];
         return r && r.status === "success" ? Number(r.result as bigint) : def;
@@ -209,6 +214,10 @@ export async function readCallState(): Promise<CallState> {
         const r = stateResults[base + idx];
         return r && r.status === "success" ? (r.result as bigint) : 0n;
       };
+      const getStr = (idx: number) => {
+        const r = stateResults[base + idx];
+        return r && r.status === "success" ? (r.result as string) : "";
+      };
       circleData.push({
         addr: circles[i],
         state: getNum(0, -1),
@@ -216,6 +225,22 @@ export async function readCallState(): Promise<CallState> {
         roundsPaid: getNum(2, 0),
         contribution: getBig(3),
         membersLen: getNum(4, 0),
+        token: getStr(5),
+      });
+    }
+
+    // Tokens vary in decimals (USDT/USDC 6, USDm/NGNm 18). Read decimals once per unique token so
+    // we can normalize all pots to an 18-dec equivalent — otherwise a 6-dec USDT total shows 0.00
+    // (the dashboard formats totals as 18-dec). Mirrors agent/src/metrics.py.
+    const tokenDecimals = new Map<string, number>();
+    const uniqueTokens = [...new Set(circleData.map((c) => c.token).filter(Boolean))];
+    if (uniqueTokens.length > 0) {
+      const decResults = await batchMulticall(
+        uniqueTokens.map((t) => ({ address: t as Address, abi: erc20DecimalsAbi, functionName: "decimals" as const }))
+      );
+      uniqueTokens.forEach((t, i) => {
+        const r = decResults[i];
+        tokenDecimals.set(t, r && r.status === "success" ? Number(r.result) : 18);
       });
     }
 
@@ -243,9 +268,12 @@ export async function readCallState(): Promise<CallState> {
 
     for (const c of circleData) {
       if (c.slots > 0 && c.contribution > 0n) {
-        totalContributions += BigInt(c.roundsPaid) * BigInt(c.slots) * c.contribution;
+        const dec = tokenDecimals.get(c.token) ?? 18;
+        const scale = 10n ** BigInt(Math.max(0, 18 - dec)); // normalize to 18-dec equivalent
+        const pot18 = BigInt(c.roundsPaid) * BigInt(c.slots) * c.contribution * scale;
+        totalContributions += pot18;
         contributionCount += c.roundsPaid * c.slots;
-        totalPayouts += BigInt(c.roundsPaid) * c.contribution * BigInt(c.slots);
+        totalPayouts += pot18;
         payoutCount += c.roundsPaid;
       }
       if (c.state === 0) circleStates.forming++;

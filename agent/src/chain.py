@@ -47,6 +47,7 @@ class CircleView:
     contributed_this_round: dict  # member -> bool
     yield_adapter: str  # address(0) if none configured
     balance: int  # contract's current token balance (idle funds, excludes parked)
+    token: str = ""  # the circle's ERC20 (decimals vary: USDT/USDC 6, USDm/NGNm 18)
 
     STATE_NAMES = ["Forming", "Active", "Completed", "Defaulted", "Dissolved"]
 
@@ -117,8 +118,9 @@ class ChainClient:
                 contributed[m] = c.functions.contributedInRound(cr, m).call()
 
         yield_adapter = c.functions.yieldAdapter().call()
+        token_addr = c.functions.token().call()
         token = self.w3.eth.contract(
-            address=Web3.to_checksum_address(c.functions.token().call()), abi=_ERC20_BALANCE_ABI
+            address=Web3.to_checksum_address(token_addr), abi=_ERC20_BALANCE_ABI
         )
         balance = token.functions.balanceOf(Web3.to_checksum_address(addr)).call()
 
@@ -141,6 +143,7 @@ class ChainClient:
             contributed_this_round=contributed,
             yield_adapter=yield_adapter,
             balance=balance,
+            token=Web3.to_checksum_address(token_addr),
         )
 
     def now(self) -> int:
