@@ -221,8 +221,28 @@ export function useMyStats() {
       { address: addr, abi: circleAbi, functionName: "roundsPaid" as const },
       { address: addr, abi: circleAbi, functionName: "contribution" as const },
       { address: addr, abi: circleAbi, functionName: "membersLength" as const },
+      { address: addr, abi: circleAbi, functionName: "token" as const },
     ]),
   });
+  // Tokens vary in decimals (USDT/USDC 6, USDm/NGNm 18). Read decimals per unique token so totals
+  // can be normalized to an 18-dec equivalent — else a 6-dec USDT total renders 0.00 via fmt(…,18).
+  const tokens = useMemo(() => {
+    const set = new Set<string>();
+    mine.forEach((_, i) => {
+      const t = detail.data?.[i * 6 + 5]?.result as string | undefined;
+      if (t) set.add(t);
+    });
+    return [...set];
+  }, [mine, detail.data]);
+  const decimalsQ = useReadContracts({
+    query: { enabled: tokens.length > 0 },
+    contracts: tokens.map((t) => ({ address: t as Addr, abi: erc20Abi, functionName: "decimals" as const })),
+  });
+  const decimalsMap = useMemo(() => {
+    const m = new Map<string, number>();
+    tokens.forEach((t, i) => m.set(t, Number(decimalsQ.data?.[i]?.result ?? 18)));
+    return m;
+  }, [tokens, decimalsQ.data]);
   const score = useScore(me);
   const stats = useMemo<MyStats>(() => {
     const s: MyStats = {
@@ -232,11 +252,12 @@ export function useMyStats() {
     let contributed = 0n;
     let distributed = 0n;
     mine.forEach((c, i) => {
-      const base = i * 5;
+      const base = i * 6;
       const num = (k: number) => Number((detail.data?.[base + k]?.result as bigint | number) ?? 0);
       const big = (k: number) => (detail.data?.[base + k]?.result as bigint) ?? 0n;
       const state = num(0), slots = num(1), roundsPaid = num(2), members = num(4);
       const contribution = big(3);
+      const token = (detail.data?.[base + 5]?.result as string) ?? "";
       if (c.isOrganizer) s.created++;
       else if (c.isMember) s.joined++;
       if (state === 0) s.forming++;
@@ -244,8 +265,10 @@ export function useMyStats() {
       else if (state === 2) s.completed++;
       else if (state === 3) s.defaulted++;
       if (slots > 0 && contribution > 0n) {
-        contributed += BigInt(roundsPaid) * BigInt(slots) * contribution;
-        distributed += BigInt(roundsPaid) * BigInt(slots) * contribution;
+        const scale = 10n ** BigInt(Math.max(0, 18 - (decimalsMap.get(token) ?? 18)));
+        const pot18 = BigInt(roundsPaid) * BigInt(slots) * contribution * scale;
+        contributed += pot18;
+        distributed += pot18;
         s.contributions += roundsPaid * slots;
         s.payouts += roundsPaid;
       }
@@ -254,7 +277,7 @@ export function useMyStats() {
     s.totalContributed = contributed.toString();
     s.totalDistributed = distributed.toString();
     return s;
-  }, [mine, detail.data]);
+  }, [mine, detail.data, decimalsMap]);
   return { me, stats, score, isLoading: isLoading || detail.isLoading };
 }
 
