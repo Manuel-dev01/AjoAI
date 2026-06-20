@@ -317,28 +317,35 @@ export async function readLiveOverlay(): Promise<LiveOverlay | null> {
 }
 
 // ── full-history event aggregation (refresh job only) ─────────────────────
-// 1,000-block chunks (the thirdweb/Ankr getLogs cap) scanned with a bounded concurrency
-// pool. Best-effort: any failure degrades to zeros, never throws.
+// Scanned in forno's real 5,000-block getLogs cap (was 1,000 — 5× more chunks for no reason)
+// with a bounded concurrency pool. These feed only the SECONDARY late/yield fields (the headline
+// numbers come from the reliable state-based readCallState), so a partial scan is non-fatal — but
+// chunk failures are now COUNTED and logged LOUD instead of silently degrading to zeros.
 export async function aggregateEvents(circles: Address[]): Promise<EventMetrics> {
   const empty: EventMetrics = { lateContributions: 0, yieldDeposits: 0, yieldWithdrawals: 0, totalYield: "0" };
   if (circles.length === 0) return empty;
   try {
     const latest = await client.getBlockNumber();
     const floor = DEPLOY_BLOCK[activeChain.id] ?? 0n;
-    const CHUNK = 1_000n; // RPC caps getLogs at 1,000 blocks
+    const CHUNK = 5_000n; // forno caps getLogs at 5,000 blocks
     const ranges: { from: bigint; to: bigint }[] = [];
     for (let s = floor; s <= latest; s += CHUNK) {
       const e = s + CHUNK - 1n > latest ? latest : s + CHUNK - 1n;
       ranges.push({ from: s, to: e });
     }
+    let failedChunks = 0;
     const settled = await mapPool(ranges, 10, async (r) => {
       try {
         // No event filter: circles emit only AjoAI events; topic0 is matched below.
         return await client.getLogs({ address: circles, fromBlock: r.from, toBlock: r.to });
       } catch {
+        failedChunks++;
         return [];
       }
     });
+    if (failedChunks > 0) {
+      console.warn(`aggregateEvents: ${failedChunks}/${ranges.length} getLogs chunks failed — late/yield counts may be partial`);
+    }
 
     let late = 0;
     let deposits = 0;

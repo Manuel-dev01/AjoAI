@@ -58,7 +58,10 @@ class CircleView:
 class ChainClient:
     def __init__(self, settings: Settings):
         self.s = settings
-        self.w3 = Web3(Web3.HTTPProvider(settings.rpc_url))
+        # request_kwargs timeout: web3.py's HTTPProvider has NO read timeout by default, so a
+        # dropped/slow forno connection can hang a call forever — which would stall the single
+        # worker thread that runs the whole serve-all sweep. Bound every RPC call to 30s.
+        self.w3 = Web3(Web3.HTTPProvider(settings.rpc_url, request_kwargs={"timeout": 30}))
         # Celo is OP-stack; inject POA middleware for extraData tolerance.
         self.w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
         self.circle_abi = load_abi("Circle")

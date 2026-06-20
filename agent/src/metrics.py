@@ -1,11 +1,15 @@
 """On-chain metrics aggregator for AjoAI.
 
-Queries event logs from the CircleFactory and ReputationLedger contracts to produce
-a snapshot of all circles, contributions, payouts, and reputation activity.  Used for:
+Reads CIRCLE STATE (not event history) and aggregates it into a snapshot. Used for:
   CLI        python -m src.main metrics
   JSON       optionally writes a snapshot file for the miniapp stats page
 
-Chain is the source of truth (CLAUDE.md §1.2) — this module reads events, never memory.
+Chain is the source of truth (CLAUDE.md §1.2). This was previously event-based — it scanned
+every event type for every circle from the factory deploy block to head in 1 000-block
+chunks (~200k getLogs/sweep), which forno rate-limited into silent empty results, so every
+event-derived count collapsed to 0 while circlesCreated (a single scan) survived. It now
+mirrors the frontend's reliable state-based ``readCallState`` (miniapp/lib/metrics.ts): a few
+hundred cheap ``eth_call``s via the shared ``ChainClient``, no full-history event scans.
 """
 
 from __future__ import annotations
@@ -17,13 +21,11 @@ from pathlib import Path
 
 from web3 import Web3
 
+from .chain import ChainClient
 from .config import Settings
+from .logs import get_logger
 
-# Factory deployment blocks (avoids scanning from genesis).
-_DEPLOY_BLOCK: dict[str, int] = {
-    "sepolia": 27_135_283,
-    "mainnet": 69_477_069,
-}
+log = get_logger("ajoai.metrics")
 
 
 @dataclass
@@ -62,19 +64,38 @@ class MetricsSnapshot:
 
     agent_tx_count: int = 0
 
+    def looks_zeroed(self) -> bool:
+        """True when circles exist but every activity metric is 0 — an implausible result
+        that means a failed read, not reality. The push path uses this to AVOID overwriting
+        a known-good snapshot with zeros (anti-regression guard)."""
+        return (
+            self.circles_created > 0
+            and self.circles_completed == 0
+            and self.contribution_count == 0
+            and self.payout_count == 0
+        )
+
 
 class MetricsCollector:
-    """Reads event logs and aggregates them into a ``MetricsSnapshot``."""
+    """Reads circle STATE and aggregates it into a ``MetricsSnapshot``."""
 
-    def __init__(self, settings: Settings):
+    def __init__(self, settings: Settings, chain: ChainClient | None = None):
         self.s = settings
-        self.w3 = Web3(Web3.HTTPProvider(settings.rpc_url))
-        self._from_block = _DEPLOY_BLOCK.get(settings.chain, 0)
+        # Reuse the shared ChainClient (POA middleware + Circle/Factory/Reputation ABIs +
+        # all_circles()/view_circle()/reputation() helpers). Falls back to a fresh one for
+        # the standalone CLI.
+        self.chain = chain or ChainClient(settings)
+        self.w3 = self.chain.w3
 
     # ── public ──
 
-    def collect(self) -> MetricsSnapshot:
-        """Aggregate every event into a single snapshot."""
+    def collect(self, views=None, circles_created: int | None = None) -> MetricsSnapshot:
+        """Aggregate every circle's STATE into a single snapshot (no event-history scans).
+
+        *views*: pre-fetched ``CircleView``s. The serve-all sweep ALREADY reads one per circle
+        to decide actions, so it passes them here and the metrics pass costs ~0 extra RPC. When
+        omitted (the standalone ``metrics`` CLI), we fetch them ourselves. *circles_created* is
+        the authoritative factory count (the state tally is best-effort over readable circles)."""
         snap = MetricsSnapshot(
             chain=self.s.chain,
             chain_id=self.s.chain_id,
@@ -84,19 +105,61 @@ class MetricsCollector:
         if not self.s.factory:
             return snap
 
-        factory = Web3.to_checksum_address(self.s.factory)
-        rep_addr = Web3.to_checksum_address(self.s.reputation_ledger) if self.s.reputation_ledger else None
+        if views is None:
+            circles = self.chain.all_circles()  # factory.allCirclesLength() + allCircles(i)
+            snap.circles_created = len(circles)
+            views = []
+            for addr in circles:
+                try:
+                    views.append(self.chain.view_circle(addr))
+                except Exception as e:  # noqa: BLE001 — loud, never silent; skip just this circle
+                    log.warning("metrics_circle_read_error", circle=addr, error=str(e))
+        else:
+            snap.circles_created = circles_created if circles_created is not None else len(views)
 
-        circles = self._collect_factory(factory, snap)
-        self._collect_circles(circles, snap)
+        members: set[str] = set()
+        for v in views:
+            # State tally: 0 Forming · 1 Active · 2 Completed · 3 Defaulted · 4 Dissolved.
+            if v.state == 0:
+                snap.circles_forming += 1
+            elif v.state == 1:
+                snap.circles_active += 1
+            elif v.state == 2:
+                snap.circles_completed += 1
+            elif v.state == 3:
+                snap.circles_defaulted += 1
+            elif v.state == 4:
+                snap.circles_dissolved += 1
 
-        if rep_addr:
-            self._collect_reputation(rep_addr, snap)
+            # intended_pot == slots × contribution, so a paid round moves exactly one pot in
+            # (all slots contribute) and one pot out (the recipient). Mirrors readCallState.
+            if v.slots > 0 and v.intended_pot > 0:
+                snap.contribution_count += v.rounds_paid * v.slots
+                snap.total_contributions_wei += v.rounds_paid * v.intended_pot
+                snap.payout_count += v.rounds_paid
+                snap.total_payouts_wei += v.rounds_paid * v.intended_pot
 
-        if self.s.agent_key:
-            from web3 import Account
-            agent = Account.from_key(self.s.agent_key).address
-            snap.agent_tx_count = self._count_from(agent)
+            for m in v.members:
+                members.add(m.lower())
+
+        snap.unique_members = len(members)
+        snap.defaults_triggered = snap.circles_defaulted  # mirror frontend (no separate event count)
+
+        self._collect_reputation(snap)
+        # NOTE: yield_deposits/withdrawals/total_yield_wei are genuinely event-only
+        # (SimulatedYieldAdapter). A full-history getLogs scan over ~577k blocks with a 44-address
+        # filter hangs/times-out on forno (web3.py has no read timeout), which is exactly the kind
+        # of fragility this rewrite removes — so yield stays 0 here (DEFERRED, non-headline; the
+        # committed snapshot historically had it 0/absent too). Revisit with a bounded, timed scan
+        # or a dedicated indexer if the capital-efficiency panel needs live numbers.
+
+        if self.chain.address:
+            try:
+                snap.agent_tx_count = self.w3.eth.get_transaction_count(
+                    Web3.to_checksum_address(self.chain.address), "latest"
+                )
+            except Exception as e:  # noqa: BLE001
+                log.warning("metrics_agent_tx_read_error", error=str(e))
 
         return snap
 
@@ -120,6 +183,8 @@ class MetricsCollector:
         """camelCase, wei-as-strings dict — the shape the Next.js stats page + /api/metrics expect."""
         out: dict = {}
         for k, v in asdict(snap).items():
+            if k == "looks_zeroed":  # method isn't in asdict, but guard against future fields
+                continue
             out[self._FRONTEND_KEY_MAP.get(k, k)] = str(v) if k in self._WEI_KEYS else v
         out["timestamp"] = datetime.now(timezone.utc).isoformat()
         return out
@@ -133,141 +198,18 @@ class MetricsCollector:
 
     # ── internals ──
 
-    def _logs(self, address: str, topics: list, from_block: int = 0) -> list:
-        """Fetch event logs in 1 000-block chunks (thirdweb/Ankr getLogs cap is 1 000
-        blocks; larger ranges fail with "Maximum allowed number of requested blocks is
-        1000", which silently dropped late-payment/yield events)."""
-        start = from_block or self._from_block
-        end = self.w3.eth.block_number
-        chunk = 1_000
-        all_logs: list = []
-        while start <= end:
-            to = min(start + chunk - 1, end)
-            try:
-                batch = self.w3.eth.get_logs(
-                    {
-                        "address": Web3.to_checksum_address(address),
-                        "fromBlock": start,
-                        "toBlock": to,
-                        "topics": topics,
-                    }
-                )
-                all_logs.extend(batch)
-            except Exception:
-                pass  # skip chunk on error (rate-limit, etc.)
-            start = to + 1
-        return all_logs
-
-    @staticmethod
-    def _topic(sig: str) -> str:
-        return Web3.keccak(text=sig).hex()
-
-    @staticmethod
-    def _uint256(data: bytes, offset: int = 0) -> int:
-        return int.from_bytes(data[offset : offset + 32], "big")
-
-    def _collect_factory(self, factory: str, snap: MetricsSnapshot) -> list[str]:
-        created_topic = self._topic("CircleCreated(address,address)")
-        logs = self._logs(factory, [created_topic])
-
-        snap.circles_created = len(logs)
-        circles = []
-        for log in logs:
-            addr = "0x" + log["topics"][1].hex()[-40:]
-            circles.append(Web3.to_checksum_address(addr))
-        return circles
-
-    def _collect_circles(self, circles: list[str], snap: MetricsSnapshot) -> None:
-        if not circles:
+    def _collect_reputation(self, snap: MetricsSnapshot) -> None:
+        """ERC-8004 signals from ReputationLedger.scoreOf(agent) — a single state call, not a
+        Signal-event scan. scoreOf -> (score, onTime, late, defaults, completions)."""
+        if not self.s.reputation_ledger or not self.chain.address:
             return
-
-        joined_topic = self._topic("MemberJoined(address,uint256,uint256)")
-        contrib_topic = self._topic("Contributed(address,uint256,uint256,bool)")
-        late_topic = self._topic("LatePaid(address,uint256,uint256)")
-        payout_topic = self._topic("PaidOut(address,uint256,uint256)")
-        delinq_topic = self._topic("Delinquent(address,uint256,uint256)")
-        completed_topic = self._topic("CircleCompleted()")
-        defaulted_topic = self._topic("CircleDefaulted(uint256)")
-        dissolved_topic = self._topic("CircleDissolved()")
-        active_topic = self._topic("CircleStarted(uint256,uint256)")
-        deposit_topic = self._topic("SimulatedDeposit(address,address,uint256)")
-        withdraw_topic = self._topic("SimulatedWithdraw(address,address,uint256,uint256)")
-
-        members: set[str] = set()
-
-        for addr in circles:
-            try:
-                joined = self._logs(addr, [joined_topic])
-                for log in joined:
-                    m = "0x" + log["topics"][1].hex()[-40:]
-                    members.add(m.lower())
-
-                for log in self._logs(addr, [contrib_topic]):
-                    # data layout: amount (0..32), late (32..64) — member+round are indexed (topics)
-                    snap.total_contributions_wei += self._uint256(log["data"], 0)
-                    snap.contribution_count += 1
-
-                for log in self._logs(addr, [late_topic]):
-                    snap.late_contributions += 1
-
-                for log in self._logs(addr, [payout_topic]):
-                    # data layout: pot (0..32) — recipient+round are indexed (topics)
-                    snap.total_payouts_wei += self._uint256(log["data"], 0)
-                    snap.payout_count += 1
-
-                for log in self._logs(addr, [delinq_topic]):
-                    snap.defaults_triggered += 1
-
-                completed = self._logs(addr, [completed_topic])
-                if completed:
-                    snap.circles_completed += 1
-
-                defaulted = self._logs(addr, [defaulted_topic])
-                if defaulted:
-                    snap.circles_defaulted += 1
-
-                dissolved = self._logs(addr, [dissolved_topic])
-                if dissolved:
-                    snap.circles_dissolved += 1
-
-                if not completed and not defaulted and not dissolved:
-                    started = self._logs(addr, [active_topic])
-                    if started:
-                        snap.circles_active += 1
-                    else:
-                        snap.circles_forming += 1
-
-                for log in self._logs(addr, [deposit_topic]):
-                    snap.yield_deposits += 1
-                for log in self._logs(addr, [withdraw_topic]):
-                    snap.yield_withdrawals += 1
-                    # data layout: principal (0..32), yieldAccrued (32..64) — token+circle are indexed
-                    snap.total_yield_wei += self._uint256(log["data"], 32)
-
-            except Exception:
-                continue  # never let one circle stall the whole collection
-
-        snap.unique_members = len(members)
-
-    def _collect_reputation(self, rep_addr: str, snap: MetricsSnapshot) -> None:
-        signal_topic = self._topic("Signal(address,int256,int256,string)")
         try:
-            logs = self._logs(rep_addr, [signal_topic])
-            snap.reputation_signals = len(logs)
-            for log in logs:
-                delta = int.from_bytes(log["data"][:32], "big", signed=True)
-                if delta > 0:
-                    snap.positive_signals += 1
-                elif delta < 0:
-                    snap.negative_signals += 1
-        except Exception:
-            pass
-
-    def _count_from(self, sender: str) -> int:
-        """Count transactions sent by *sender* (agent address)."""
-        try:
-            return self.w3.eth.get_transaction_count(
-                Web3.to_checksum_address(sender), "latest"
-            )
-        except Exception:
-            return 0
+            rep = self.chain.reputation()
+            _score, on_time, late, defaults, _completions = rep.functions.scoreOf(
+                Web3.to_checksum_address(self.chain.address)
+            ).call()
+            snap.reputation_signals = on_time + late + defaults
+            snap.positive_signals = on_time
+            snap.negative_signals = late + defaults
+        except Exception as e:  # noqa: BLE001 — loud, never silent
+            log.warning("metrics_reputation_read_error", error=str(e))
