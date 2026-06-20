@@ -49,8 +49,27 @@ what happened mid-build (the Blob stopped updating but circles kept being create
 - Set on **Vercel**: the **same** `CRON_SECRET`, plus `BLOB_READ_WRITE_TOKEN` (without it
   `writeBlobSnapshot` no-ops → frozen dashboard even though the POST returns 200-ish).
 - The worker now logs `metrics_push_disabled` (config missing), `metrics_push_rejected` (e.g. 401
-  secret mismatch), and escalates to **error** after 3 consecutive failures. The dashboard shows a
-  `Synced …` / `⚠ Last synced … — agent may be paused` badge from the snapshot's own write time.
+  secret mismatch), `metrics_push_not_stored` (200 but `stored:false` → **Blob token missing on
+  Vercel**, the silent-freeze case), and escalates to **error** after 3 consecutive failures. The
+  dashboard shows a `Synced …` / `⚠ Last synced … — agent may be paused` badge from the snapshot's
+  own write time.
+
+## Deploy & funding gotchas (learned the hard way)
+- **`railway up` respects `.gitignore`, NOT `.railwayignore` (CLI 5.8).** The demo rotation imports
+  the **gitignored** internal tools `agent/scripts/mainnet_seed.py` + `agent/src/feedback.py`
+  (ERC-8004 `giveFeedback` → 8004scan). If they're excluded from the upload, the image boots fine
+  but every demo rotation dies with `No module named 'scripts.mainnet_seed'` (no new circles, no
+  reputation → **8004scan freezes**). `.dockerignore` does NOT exclude them, so the only fix is to
+  get them into the upload: temporarily comment out those two lines in `.gitignore`, `railway up`,
+  then restore. Do **not** `git add` them (keep them out of the public repo). A GitHub-triggered
+  build can't ship them either (they're not in git) — `railway up` from a checkout that has them is
+  the only path.
+- **The agent needs TWO balances, not one.** CELO for **gas** (~1.1 CELO per demo cycle at
+  `AJOAI_DEMO_SLOTS=4`, NOT recovered → ~25 CELO/day at hourly cadence) **and** a small **USD₮
+  working float** (~1.8 USD₮/cycle, *recovered* each cycle via `seed_complete`, so ~5 USD₮ is a
+  sustainable buffer). Funding only CELO → `seed_skip_low_usdt`; funding only USD₮ → insufficient
+  gas. Top up CELO via `agent/scripts/swap_usdt_celo.py` / restore the USD₮ float via
+  `swap_celo_usdt.py` (both read the key from env `AGENT_KEY`, swap on Uniswap V3 Celo).
 
 ## Diagnose "did the agent stop?" (no dashboard access needed)
 Compare on-chain reality to the dashboard. `AGENT=<mainnet agent address>`:

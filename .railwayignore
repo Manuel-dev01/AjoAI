@@ -1,0 +1,25 @@
+# Upload filter for `railway up`. Railway uses THIS instead of .gitignore for uploads,
+# so we deliberately re-include the gitignored internal seeding tools the agent needs at
+# runtime — agent/scripts/mainnet_seed.py + agent/src/feedback.py (ERC-8004 giveFeedback /
+# 8004scan) — while still excluding heavy/irrelevant trees. The Dockerfile's .dockerignore
+# then keeps the built image lean. Without this file, .gitignore drops mainnet_seed.py and the
+# demo rotation ImportErrors on boot (no new circles, no reputation → 8004scan freezes).
+.git
+miniapp
+contracts/lib
+contracts/out
+contracts/cache
+contracts/broadcast
+docs
+**/node_modules
+**/.venv
+**/__pycache__
+**/*.pyc
+.env
+.env.*
+!.env.example
+*.log
+.claude
+agent/.mainnet_members.json
+agent/.mainnet_e2e.json
+agent/.self_session.json
