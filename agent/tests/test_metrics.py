@@ -143,6 +143,17 @@ def test_looks_zeroed_false_when_activity_present():
     assert snap.looks_zeroed() is False
 
 
+def test_total_normalized_to_18_decimals(monkeypatch):
+    # A USDT-style 6-dec token: a 2-USDT pot (2_000_000 in 6-dec) must be normalized ×10^12 so the
+    # dashboard's 18-dec formatter shows whole tokens instead of 0.00.
+    views = [_view(_caddr(1), state=2, slots=2, rounds_paid=2, intended_pot=2_000_000, members=["0xA"])]
+    coll = MetricsCollector(_settings(), _FakeChain(views, (0, 0, 0, 0, 0)))
+    monkeypatch.setattr(coll, "_token_decimals", lambda _addr, _cache: 6)
+    snap = coll.collect(views=views, circles_created=1)
+    assert snap.total_contributions_wei == 2 * 2_000_000 * 10 ** 12
+    assert snap.total_contributions_wei / 1e18 == 4.0  # 2 rounds × 2 USDT
+
+
 def test_empty_factory_not_flagged():
     # No circles at all → not a failed read, just an empty system → guard stays quiet.
     snap = MetricsSnapshot(chain="mainnet", chain_id=42220, explorer="x", factory="0xF")
