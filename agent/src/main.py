@@ -55,9 +55,11 @@ def _sweep(agent, chain, log) -> None:
         )
     circles = chain.all_circles()
     log.info("serve_all_sweep", count=len(circles), gasBalanceCELO=round(bal / 1e18, 4))
+    views = []  # capture the per-circle reads so the metrics pass reuses them (no double RPC)
     for addr in circles:
         try:
             v = chain.view_circle(addr)
+            views.append(v)
             if v.state >= 2:  # Completed/Defaulted/Dissolved — nothing to do
                 continue
             results = agent.run_once(addr)
@@ -73,8 +75,17 @@ def _sweep(agent, chain, log) -> None:
     # this file only when its timestamp is fresh, else falls through to a live read).
     try:
         from .config import REPO_ROOT
-        collector = MetricsCollector(agent.s)
-        snap = collector.collect()
+        collector = MetricsCollector(agent.s, chain)  # reuse the sweep's ChainClient
+        snap = collector.collect(views=views, circles_created=len(circles))  # reuse the views too
+        # Anti-regression: a transient RPC failure must never overwrite the good Blob snapshot
+        # with zeros. circles exist but all activity is 0 → a failed read, not reality → skip.
+        if snap.looks_zeroed():
+            log.error(
+                "metrics_snapshot_implausible_zero",
+                circlesCreated=snap.circles_created,
+                detail="state read returned zero activity for a non-empty factory — skipping push",
+            )
+            return
         payload = collector.frontend_payload(snap)
         out = REPO_ROOT / "miniapp" / "public" / "data" / "metrics.json"
         collector.export_json(snap, out, frontend=True)
