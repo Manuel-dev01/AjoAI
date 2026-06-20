@@ -382,11 +382,15 @@ export const BLOB_PATH = "metrics/latest.json";
 const METRICS_FILE = join(process.cwd(), "public", "data", "metrics.json");
 
 export async function readBlobSnapshot(): Promise<Metrics | null> {
-  if (!process.env.BLOB_READ_WRITE_TOKEN) return null;
+  const token = process.env.BLOB_READ_WRITE_TOKEN;
+  if (!token) return null;
   try {
     const { list } = await import("@vercel/blob");
+    // Pass the token EXPLICITLY. Without it the SDK auto-detects creds, and in the Vercel runtime
+    // (OIDC auto-injected + a stale BLOB_STORE_ID from an earlier store) it targets the wrong store
+    // → silent failure. The explicit token pins reads/writes to the connected store.
     // Hard timeouts so a slow/stuck Blob endpoint can never hang the request.
-    const { blobs } = await withTimeout(list({ prefix: BLOB_PATH }), 2500, "blob list timeout");
+    const { blobs } = await withTimeout(list({ prefix: BLOB_PATH, token }), 2500, "blob list timeout");
     const hit = blobs.find((b) => b.pathname === BLOB_PATH) ?? blobs[0];
     if (!hit) return null;
     const res = await fetch(hit.url, { cache: "no-store", signal: AbortSignal.timeout(2500) });
@@ -414,14 +418,18 @@ export async function readSnapshot(): Promise<Metrics | null> {
 }
 
 export async function writeBlobSnapshot(data: Metrics): Promise<boolean> {
-  if (!process.env.BLOB_READ_WRITE_TOKEN) return false;
+  const token = process.env.BLOB_READ_WRITE_TOKEN;
+  if (!token) return false;
   try {
     const { put } = await import("@vercel/blob");
+    // Explicit token (see readBlobSnapshot) — verified to fix `stored:false` writes where the
+    // SDK's auto-detected creds resolved to the wrong store in the Vercel runtime.
     await put(BLOB_PATH, JSON.stringify(data), {
       access: "public",
       contentType: "application/json",
       allowOverwrite: true,
       addRandomSuffix: false,
+      token,
     });
     return true;
   } catch {
