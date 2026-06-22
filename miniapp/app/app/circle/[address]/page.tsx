@@ -17,7 +17,8 @@ import { circleAbi, erc20Abi, STATE_NAMES } from "@/lib/abi";
 import { useCircle, useToken, useMembers, useMyStatus, useCircleActivity, type ActivityEvent } from "@/lib/circle";
 import { fmtAmount, fmtCompact, short, whenLabel, frequencyLabel, durationLabel } from "@/lib/format";
 import { SIM_APY_BPS, apyLabel, projectedYield, secondsUntil, periodLabel } from "@/lib/yield";
-import { explorerAddr, FAUCETABLE, EXPLORER_NAME } from "@/lib/chain";
+import { explorerAddr, explorerTx, FAUCETABLE, EXPLORER_NAME } from "@/lib/chain";
+import { receiptLink, openDeeplink, isMiniPay } from "@/lib/minipay";
 import { getName } from "@/lib/names";
 
 type Tab = "circle" | "pay" | "activity" | "ask";
@@ -425,6 +426,17 @@ function PayTab({ address, c, symbol, decimals, my }: { address: `0x${string}`; 
         </div>
         <Lrow k="Round" v={c.round?.toString()} />
         <Lrow k="Goes to" v={short(c.recipient)} vColor="var(--clay-d)" />
+        {txHash && (
+          isMiniPay() ? (
+            <button className="btn-ghost btn-block" style={{ marginTop: 12 }} onClick={() => openDeeplink(receiptLink(txHash))}>
+              View receipt
+            </button>
+          ) : (
+            <a className="btn-ghost btn-block" style={{ marginTop: 12, display: "block", textAlign: "center" }} href={explorerTx(txHash)} target="_blank" rel="noreferrer">
+              View on {EXPLORER_NAME}
+            </a>
+          )
+        )}
       </>
     );
   }

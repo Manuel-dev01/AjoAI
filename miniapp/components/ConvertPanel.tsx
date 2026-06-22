@@ -9,6 +9,7 @@ import { TOKENS, POCKETS_STABLES, MENTO_BROKER } from "@/lib/chain";
 import { fmtAmount, fmtCompact } from "@/lib/format";
 import { useTokenBalance } from "@/components/Faucet";
 import { findExchange, quoteAmountIn, mentoBrokerAbi, type MentoExchange } from "@/lib/mento";
+import { addCashLink, openDeeplink, isMiniPay } from "@/lib/minipay";
 
 // Rendered inside the convert bottom-sheet when a member lacks the circle's token. Two paths:
 //  • Stable trio (USDm/USDT/USDC): MiniPay Pockets does a native 1:1 swap — guide there.
@@ -28,9 +29,20 @@ export function ConvertPanel({
     return (
       <div className="banner" style={{ background: "var(--cream-d)", color: "var(--ink)", borderColor: "var(--ink)" }}>
         <p style={{ margin: "0 0 6px", fontWeight: 700 }}>Get {needSymbol} in MiniPay</p>
-        <p className="muted" style={{ margin: 0, fontSize: 13 }}>
-          One tap in MiniPay <b>Pockets</b>: swap USDT → {needSymbol}. Instant, 1:1, no fee — then come back and join.
-        </p>
+        {isMiniPay() ? (
+          <>
+            <p className="muted" style={{ margin: "0 0 10px", fontSize: 13 }}>
+              Add {needSymbol} to your wallet — instant, 1:1, no fee. Then come back and join.
+            </p>
+            <button className="btn btn-block" onClick={() => openDeeplink(addCashLink([needSymbol]))}>
+              Add {needSymbol} in MiniPay
+            </button>
+          </>
+        ) : (
+          <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+            One tap in MiniPay <b>Pockets</b>: swap USDT → {needSymbol}. Instant, 1:1, no fee — then come back and join.
+          </p>
+        )}
       </div>
     );
   }
@@ -126,9 +138,20 @@ function MentoSwap({
       </div>
       {error && <p className="banner">{friendlyTxError(error)}</p>}
       {lowUsdm ? (
-        <p className="muted" style={{ fontSize: 13 }}>
-          First get ~{fmtCompact(usdmIn, "USDm", 18)} in MiniPay <b>Pockets</b> (swap USDT → USDm, instant &amp; free), then reopen this to finish the swap to {needSymbol}.
-        </p>
+        isMiniPay() ? (
+          <>
+            <p className="muted" style={{ fontSize: 13, margin: "0 0 10px" }}>
+              First add ~{fmtCompact(usdmIn, "USDm", 18)} to your wallet (instant &amp; free), then reopen this to finish the swap to {needSymbol}.
+            </p>
+            <button className="btn btn-block" onClick={() => openDeeplink(addCashLink(["USDm"]))}>
+              Add USDm in MiniPay
+            </button>
+          </>
+        ) : (
+          <p className="muted" style={{ fontSize: 13 }}>
+            First get ~{fmtCompact(usdmIn, "USDm", 18)} in MiniPay <b>Pockets</b> (swap USDT → USDm, instant &amp; free), then reopen this to finish the swap to {needSymbol}.
+          </p>
+        )
       ) : needsApproval ? (
         <button className="btn btn-block" disabled={busy} onClick={approve}>{busy ? "Approving…" : `1. Approve ${fmtCompact(usdmIn, "USDm", 18)}`}</button>
       ) : (
