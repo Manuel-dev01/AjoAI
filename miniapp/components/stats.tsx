@@ -170,7 +170,7 @@ export function MetricsDashboard({ data }: { data: Metrics }) {
         <StatCard label="Circles" value={data.circlesCreated} color="var(--green)" />
         <StatCard label="Members" value={data.uniqueMembers} color="var(--clay)" />
         <StatCard label="Agent txs" value={data.agentTxCount} color="var(--ochre)" />
-        <StatCard label="Defaults recovered" value={data.defaultsTriggered} color="var(--ink)" />
+        <StatCard label="Circles defaulted" value={data.defaultsTriggered} color="var(--ink)" />
       </div>
 
       <Section title="Circle lifecycle">

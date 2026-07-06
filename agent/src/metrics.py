@@ -73,6 +73,11 @@ class MetricsSnapshot:
             and self.circles_completed == 0
             and self.contribution_count == 0
             and self.payout_count == 0
+            # ...AND nothing else was read either. A legit factory whose circles are all still
+            # Forming/Active with members joined but no round paid yet is NOT a failed read.
+            and self.unique_members == 0
+            and self.circles_active == 0
+            and self.circles_forming == 0
         )
 
 
@@ -152,7 +157,7 @@ class MetricsCollector:
         snap.unique_members = len(members)
         snap.defaults_triggered = snap.circles_defaulted  # mirror frontend (no separate event count)
 
-        self._collect_reputation(snap)
+        self._collect_reputation(snap, members)
         # NOTE: yield_deposits/withdrawals/total_yield_wei are genuinely event-only
         # (SimulatedYieldAdapter). A full-history getLogs scan over ~577k blocks with a 44-address
         # filter hangs/times-out on forno (web3.py has no read timeout), which is exactly the kind
@@ -227,18 +232,25 @@ class MetricsCollector:
         cache[token_addr] = d
         return d
 
-    def _collect_reputation(self, snap: MetricsSnapshot) -> None:
-        """ERC-8004 signals from ReputationLedger.scoreOf(agent) — a single state call, not a
-        Signal-event scan. scoreOf -> (score, onTime, late, defaults, completions)."""
-        if not self.s.reputation_ledger or not self.chain.address:
+    def _collect_reputation(self, snap: MetricsSnapshot, members: set[str]) -> None:
+        """Aggregate ERC-8004 signals across every circle MEMBER. Reputation is written about
+        members (contributors/defaulters), never about the agent trigger key, so scoreOf(agent)
+        is always 0 — we sum scoreOf(member) over the members already collected. scoreOf ->
+        (score, onTime, late, defaults, completions)."""
+        if not self.s.reputation_ledger or not members:
             return
         try:
             rep = self.chain.reputation()
-            _score, on_time, late, defaults, _completions = rep.functions.scoreOf(
-                Web3.to_checksum_address(self.chain.address)
-            ).call()
-            snap.reputation_signals = on_time + late + defaults
-            snap.positive_signals = on_time
-            snap.negative_signals = late + defaults
         except Exception as e:  # noqa: BLE001 — loud, never silent
             log.warning("metrics_reputation_read_error", error=str(e))
+            return
+        for m in members:
+            try:
+                _score, on_time, late, defaults, _completions = rep.functions.scoreOf(
+                    Web3.to_checksum_address(m)
+                ).call()
+                snap.reputation_signals += on_time + late + defaults
+                snap.positive_signals += on_time
+                snap.negative_signals += late + defaults
+            except Exception as e:  # noqa: BLE001 — one bad member never zeroes the aggregate
+                log.warning("metrics_reputation_member_error", member=m, error=str(e))

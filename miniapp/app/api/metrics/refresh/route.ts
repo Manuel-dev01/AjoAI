@@ -15,11 +15,12 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 function authorized(req: Request): boolean {
+  // Require the secret and verify the bearer — same as the POST ingest. The old code trusted a
+  // spoofable `x-vercel-cron` header alone (and was fully open when the secret was unset), letting
+  // anyone force repeated 300s full-history scans. Vercel cron is configured to send the bearer
+  // via vercel.json, so the header shortcut is unnecessary.
   const secret = process.env.CRON_SECRET;
-  // Vercel cron invocations carry this header; allow them, plus an explicit bearer for
-  // manual/local refreshes. If no secret is configured, allow (dev convenience).
-  if (req.headers.get("x-vercel-cron")) return true;
-  if (!secret) return true;
+  if (!secret) return false;
   return req.headers.get("authorization") === `Bearer ${secret}`;
 }
 

@@ -60,11 +60,16 @@ def decide(v: CircleView, now: int) -> list[Decision]:
 
     # (b) grace elapsed -> cover misses from deposits, then pay.
     if now >= grace_close:
-        actions = [
-            Decision("mark_delinquent", member=m, reason="missed past grace")
-            for m in v.members
-            if not v.contributed_this_round.get(m, False)
-        ]
+        missers = [m for m in v.members if not v.contributed_this_round.get(m, False)]
+        actions = [Decision("mark_delinquent", member=m, reason="missed past grace") for m in missers]
+        # BUG-1 MITIGATION (no redeploy): if the RECIPIENT themselves missed their own round,
+        # triggering payout now would let the contract's _coverRound mark them delinquent AND still
+        # pay them the pot from their own forfeited deposit (the on-chain withhold check runs BEFORE
+        # the cover). So mark them THIS pass and DEFER the payout — the next pass perceives
+        # recipient_delinquent and returns `wait` (line 46), so a self-defaulting recipient is never
+        # paid. (The permanent-lock case is Bug #2, fixed properly by the planned redeploy.)
+        if v.recipient is not None and v.recipient in missers:
+            return actions  # mark_delinquent only; no trigger_payout this pass
         if v.parked > 0:
             actions.append(Decision("withdraw_idle", reason="recall idle funds before payout"))
         actions.append(Decision("trigger_payout", reason="grace elapsed; shortfall covered"))

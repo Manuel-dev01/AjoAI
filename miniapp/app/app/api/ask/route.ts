@@ -7,6 +7,25 @@ import { factsFor, baselineAnswer, SYSTEM_PROMPT, NL_MODEL, type CircleSnapshot 
 // Server-side NL Q&A endpoint (CLAUDE.md §1.3): reads chain state, derives a deterministic
 // money-safe answer (lib/nl.ts), and optionally has Claude rephrase it in the member's
 // language. Never moves money — see agent/src/nl.py for the Python agent's equivalent.
+
+// In-memory rate limit so an anonymous loop can't drain the paid LLM_API_KEY budget. Over the
+// limit we still answer — with the deterministic baseline (money-accurate, $0) — just without the
+// LLM rephrase. Per serverless instance (Fluid Compute reuses instances), enough to blunt abuse.
+const RL_WINDOW_MS = 60_000;
+const RL_MAX = 8; // LLM calls per client key per minute
+const _llmHits = new Map<string, number[]>();
+function llmAllowed(key: string): boolean {
+  const now = Date.now();
+  const arr = (_llmHits.get(key) ?? []).filter((t) => now - t < RL_WINDOW_MS);
+  if (arr.length >= RL_MAX) {
+    _llmHits.set(key, arr);
+    return false;
+  }
+  arr.push(now);
+  _llmHits.set(key, arr);
+  return true;
+}
+
 export async function POST(req: Request) {
   let body: { circle?: string; member?: string; question?: string };
   try {
@@ -19,9 +38,11 @@ export async function POST(req: Request) {
   if (!circle || !isAddress(circle) || !member || !isAddress(member)) {
     return NextResponse.json({ error: "Invalid address" }, { status: 400 });
   }
-  if (!question || typeof question !== "string" || !question.trim() || question.length > 500) {
+  if (!question || typeof question !== "string" || !question.trim() || question.length > 300) {
     return NextResponse.json({ error: "Invalid question" }, { status: 400 });
   }
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "anon";
+  const rlKey = `${ip}:${member.toLowerCase()}`;
 
   const client = createPublicClient({ chain: activeChain, transport: http() });
   const c = { address: getAddress(circle), abi: circleAbi } as const;
@@ -89,8 +110,10 @@ export async function POST(req: Request) {
     const facts = factsFor(snapshot, member, decimals);
     const baseline = baselineAnswer(facts);
 
+    // No key, or this client is over the rate limit → return the deterministic baseline (never
+    // spends). The baseline is already money-accurate; only the LLM rephrase is skipped.
     const apiKey = process.env.LLM_API_KEY;
-    if (!apiKey) return NextResponse.json({ answer: baseline });
+    if (!apiKey || !llmAllowed(rlKey)) return NextResponse.json({ answer: baseline });
 
     const context = `FACTS (authoritative, from chain):
 - circle state: ${facts.state}

@@ -210,7 +210,7 @@ function CircleCard({ address, alt, isOrganizer, isMember }: { address: `0x${str
         <span className={`pill ${live ? "turn" : forming ? "due" : "paid"}`} style={{ marginLeft: "auto" }}>{stateName}</span>
       </div>
       <div className="meta">
-        <span>{forming ? "Forming · invite members" : `Round ${round?.toString() ?? "…"} of ${slots ?? "…"}`}</span>
+        <span>{forming ? "Forming · invite members" : `Round ${round !== undefined ? Number(round) + 1 : "…"} of ${slots ?? "…"}`}</span>
         <span>{role}</span>
       </div>
       <div className="meta">

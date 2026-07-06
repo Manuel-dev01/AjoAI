@@ -139,11 +139,10 @@ export async function readCallState(): Promise<CallState> {
   const factory = CONTRACTS.circleFactory as Address;
   const repAddr = CONTRACTS.reputationLedger as Address;
 
-  // Reputation + agent tx count run in parallel with the circle sweep.
-  const repPromise = Promise.allSettled([
-    client.readContract({ address: repAddr, abi: scoreOfAbi, functionName: "scoreOf", args: [AGENT_ADDR] }),
-    client.getTransactionCount({ address: AGENT_ADDR }),
-  ]);
+  // Agent tx count runs in parallel with the circle sweep. Reputation is aggregated AFTER the
+  // sweep (it needs the unique-member set) because reputation is written about members, not the
+  // agent trigger key — scoreOf(agent) is always 0.
+  const agentTxPromise = client.getTransactionCount({ address: AGENT_ADDR });
 
   let circleCount = 0;
   let circles: Address[] = [];
@@ -247,7 +246,8 @@ export async function readCallState(): Promise<CallState> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const memberContracts: any[] = [];
     for (const c of circleData) {
-      for (let j = 0; j < Math.min(c.membersLen, 20); j++) {
+      // slots is a uint8 (≤255); cap generously so uniqueMembers matches the Python collector.
+      for (let j = 0; j < Math.min(c.membersLen, 255); j++) {
         memberContracts.push({
           address: c.addr,
           abi: circleAbi,
@@ -289,18 +289,27 @@ export async function readCallState(): Promise<CallState> {
   let negativeSignals = 0;
   let agentTxCount = 0;
 
-  const settled = await repPromise;
-  if (settled[0].status === "fulfilled") {
-    const s = settled[0].value as readonly [bigint, bigint, bigint, bigint, bigint];
-    const onTime = Number(s[1]);
-    const late = Number(s[2]);
-    const defaults = Number(s[3]);
-    reputationSignals = onTime + late + defaults;
-    positiveSignals = onTime;
-    negativeSignals = late + defaults;
+  // Aggregate ERC-8004 signals across every unique member (scoreOf is keyed by member).
+  if (uniqueMembers.size > 0) {
+    const repResults = await batchMulticall(
+      [...uniqueMembers].map((m) => ({
+        address: repAddr, abi: scoreOfAbi, functionName: "scoreOf" as const, args: [m as Address],
+      }))
+    );
+    for (const r of repResults) {
+      if (r && r.status === "success" && r.result) {
+        const s = r.result as readonly [bigint, bigint, bigint, bigint, bigint];
+        const onTime = Number(s[1]), late = Number(s[2]), defaults = Number(s[3]);
+        reputationSignals += onTime + late + defaults;
+        positiveSignals += onTime;
+        negativeSignals += late + defaults;
+      }
+    }
   }
-  if (settled[1].status === "fulfilled") {
-    agentTxCount = Number(settled[1].value);
+  try {
+    agentTxCount = Number(await agentTxPromise);
+  } catch {
+    /* leave 0 */
   }
 
   return {
@@ -361,11 +370,15 @@ export async function aggregateEvents(circles: Address[]): Promise<EventMetrics>
       const e = s + CHUNK - 1n > latest ? latest : s + CHUNK - 1n;
       ranges.push({ from: s, to: e });
     }
+    // LatePaid is emitted by the circle, but SimulatedDeposit/Withdraw are emitted by the YIELD
+    // ADAPTER — filtering on circles alone silently dropped every yield event (yield stuck at 0).
+    // Include the adapter address so its logs are captured; topic0 is matched below.
+    const yieldAdapter = (CONTRACTS as { yieldAdapter?: string }).yieldAdapter;
+    const scanAddrs = yieldAdapter ? [...circles, yieldAdapter as Address] : circles;
     let failedChunks = 0;
     const settled = await mapPool(ranges, 10, async (r) => {
       try {
-        // No event filter: circles emit only AjoAI events; topic0 is matched below.
-        return await client.getLogs({ address: circles, fromBlock: r.from, toBlock: r.to });
+        return await client.getLogs({ address: scanAddrs, fromBlock: r.from, toBlock: r.to });
       } catch {
         failedChunks++;
         return [];
