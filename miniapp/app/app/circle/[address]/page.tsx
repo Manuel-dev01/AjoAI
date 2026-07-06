@@ -119,7 +119,7 @@ function CircleView({ address }: { address: `0x${string}` }) {
 
             <div className="dash-top">
               <RingMark variant="full" />
-              <div className="rnd">Round {c.round?.toString() ?? "…"} of {c.slots ?? "…"}</div>
+              <div className="rnd">Round {c.round !== undefined ? Number(c.round) + 1 : "…"} of {c.slots ?? "…"}</div>
               <div className="nx">{c.recipient ? `Next payout · ${short(c.recipient)} · due ${whenLabel(c.windowClose)}` : "—"}</div>
             </div>
 
@@ -424,7 +424,7 @@ function PayTab({ address, c, symbol, decimals, my }: { address: `0x${string}`; 
           <div className="a"><small>{symbol}</small>{fmtAmount(c.contribution, "", decimals)}</div>
           <div className="l">Paid this round ✓</div>
         </div>
-        <Lrow k="Round" v={c.round?.toString()} />
+        <Lrow k="Round" v={c.round !== undefined ? String(Number(c.round) + 1) : undefined} />
         <Lrow k="Goes to" v={short(c.recipient)} vColor="var(--clay-d)" />
         {txHash && (
           isMiniPay() ? (

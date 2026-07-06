@@ -23,6 +23,11 @@ def _caddr(n: int) -> str:
     return "0x" + f"{n:040x}"
 
 
+def _maddr(n: int) -> str:
+    """A valid member address (reputation aggregation checksums each member)."""
+    return "0x" + f"{(n + 0xAA0000):040x}"
+
+
 def _view(addr, state, slots, rounds_paid, intended_pot, members) -> CircleView:
     return CircleView(
         address=addr, state=state, slots=slots, current_round=0, rounds_paid=rounds_paid,
@@ -114,25 +119,38 @@ def test_unique_members_dedup_across_circles():
     assert snap.unique_members == 3  # A, B, C (A deduped)
 
 
-def test_reputation_from_scoreof():
+def test_reputation_aggregated_across_members():
+    # Reputation is written about MEMBERS, not the agent, so we sum scoreOf(member) over every
+    # unique member. Two members here, each returning (7,5,2,1,1) → totals double.
     snap = _collect(
-        [_view(_caddr(1), state=2, slots=2, rounds_paid=1, intended_pot=200, members=["0xA"])],
-        score_tuple=(7, 5, 2, 1, 1),  # score, onTime, late, defaults, completions
+        [_view(_caddr(1), state=2, slots=2, rounds_paid=1, intended_pot=200,
+               members=[_maddr(1), _maddr(2)])],
+        score_tuple=(7, 5, 2, 1, 1),  # score, onTime, late, defaults, completions (per member)
     )
-    assert snap.reputation_signals == 5 + 2 + 1
-    assert snap.positive_signals == 5
-    assert snap.negative_signals == 2 + 1
+    assert snap.reputation_signals == 2 * (5 + 2 + 1)
+    assert snap.positive_signals == 2 * 5
+    assert snap.negative_signals == 2 * (2 + 1)
     assert snap.agent_tx_count == 427
 
 
-def test_looks_zeroed_fires_on_all_forming():
-    # Circles exist but nothing has been paid → implausible zero → guard must fire.
+def test_looks_zeroed_false_when_members_joined_but_no_payout():
+    # A legit early-stage factory: circles Forming with members joined, no round paid yet. This is
+    # NOT a failed read — the guard must NOT fire (else launch-day dashboards freeze).
     snap = _collect([
         _view(_caddr(1), state=0, slots=2, rounds_paid=0, intended_pot=200, members=["0xA"]),
         _view(_caddr(2), state=0, slots=2, rounds_paid=0, intended_pot=200, members=["0xB"]),
     ])
     assert snap.contribution_count == 0
     assert snap.payout_count == 0
+    assert snap.circles_forming == 2 and snap.unique_members == 2
+    assert snap.looks_zeroed() is False
+
+
+def test_looks_zeroed_fires_on_failed_reads():
+    # Factory reports circles but EVERY per-circle read failed → all tallies 0 → implausible → fire.
+    snap = MetricsSnapshot(chain="mainnet", chain_id=42220, explorer="x", factory="0xF")
+    snap.circles_created = 82  # from all_circles()...
+    # ...but views all raised, so states/members/activity are all still 0
     assert snap.looks_zeroed() is True
 
 

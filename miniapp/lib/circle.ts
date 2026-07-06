@@ -238,11 +238,51 @@ export function useMyStats() {
     query: { enabled: tokens.length > 0 },
     contracts: tokens.map((t) => ({ address: t as Addr, abi: erc20Abi, functionName: "decimals" as const })),
   });
+  // Only map decimals once resolved — a premature default of 18 mis-scales 6-dec tokens and
+  // flashes 0.00. An empty entry means "not ready yet" and the stats memo defers that circle.
   const decimalsMap = useMemo(() => {
     const m = new Map<string, number>();
-    tokens.forEach((t, i) => m.set(t, Number(decimalsQ.data?.[i]?.result ?? 18)));
+    if (!decimalsQ.data) return m;
+    tokens.forEach((t, i) => {
+      const r = decimalsQ.data![i];
+      if (r && r.status === "success") m.set(t, Number(r.result));
+    });
     return m;
   }, [tokens, decimalsQ.data]);
+
+  // PER-USER probes: this user's stats are personal, not the circle-wide throughput. A member
+  // pays `contribution` once per round they actually contributed, and receives the pot exactly
+  // once (when they are that round's recipient). So probe hasReceived(me) + contributedInRound(r,me)
+  // for each paid round, and attribute results back to circles by address.
+  const probes = useMemo(() => {
+    const list: { addr: Addr; fn: "hasReceived" | "contributedInRound"; args: readonly unknown[] }[] = [];
+    if (!me) return list;
+    mine.forEach((c, i) => {
+      const roundsPaid = Number((detail.data?.[i * 6 + 2]?.result as bigint | number) ?? 0);
+      list.push({ addr: c.addr, fn: "hasReceived", args: [me] });
+      for (let r = 0; r < roundsPaid; r++) {
+        list.push({ addr: c.addr, fn: "contributedInRound", args: [BigInt(r), me] });
+      }
+    });
+    return list;
+  }, [mine, detail.data, me]);
+  const probeQ = useReadContracts({
+    query: { enabled: probes.length > 0, refetchInterval: 15_000 },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    contracts: probes.map((p) => ({ address: p.addr, abi: circleAbi, functionName: p.fn, args: p.args } as any)),
+  });
+  const perCircle = useMemo(() => {
+    const paidByMe = new Map<string, number>();   // addr -> rounds I actually contributed
+    const receivedByMe = new Map<string, boolean>();
+    probes.forEach((p, i) => {
+      const r = probeQ.data?.[i];
+      const ok = r && r.status === "success";
+      if (p.fn === "hasReceived") receivedByMe.set(p.addr, ok ? Boolean(r.result) : false);
+      else if (ok && r.result === true) paidByMe.set(p.addr, (paidByMe.get(p.addr) ?? 0) + 1);
+    });
+    return { paidByMe, receivedByMe };
+  }, [probes, probeQ.data]);
+
   const score = useScore(me);
   const stats = useMemo<MyStats>(() => {
     const s: MyStats = {
@@ -255,7 +295,7 @@ export function useMyStats() {
       const base = i * 6;
       const num = (k: number) => Number((detail.data?.[base + k]?.result as bigint | number) ?? 0);
       const big = (k: number) => (detail.data?.[base + k]?.result as bigint) ?? 0n;
-      const state = num(0), slots = num(1), roundsPaid = num(2), members = num(4);
+      const state = num(0), slots = num(1), members = num(4);
       const contribution = big(3);
       const token = (detail.data?.[base + 5]?.result as string) ?? "";
       if (c.isOrganizer) s.created++;
@@ -264,21 +304,27 @@ export function useMyStats() {
       else if (state === 1) s.active++;
       else if (state === 2) s.completed++;
       else if (state === 3) s.defaulted++;
-      if (slots > 0 && contribution > 0n) {
-        const scale = 10n ** BigInt(Math.max(0, 18 - (decimalsMap.get(token) ?? 18)));
-        const pot18 = BigInt(roundsPaid) * BigInt(slots) * contribution * scale;
-        contributed += pot18;
-        distributed += pot18;
-        s.contributions += roundsPaid * slots;
-        s.payouts += roundsPaid;
-      }
       s.seats += members;
+      const dec = decimalsMap.get(token);
+      if (slots > 0 && contribution > 0n && dec !== undefined) {   // defer until decimals known
+        const scale = 10n ** BigInt(Math.max(0, 18 - dec));
+        const myPaidRounds = perCircle.paidByMe.get(c.addr) ?? 0;
+        s.contributions += myPaidRounds;                          // MY contributions, not slots*rounds
+        contributed += BigInt(myPaidRounds) * contribution * scale;
+        if (perCircle.receivedByMe.get(c.addr)) {                 // I received the pot -> once
+          s.payouts += 1;
+          distributed += BigInt(slots) * contribution * scale;    // intendedPot, one time
+        }
+      }
     });
     s.totalContributed = contributed.toString();
     s.totalDistributed = distributed.toString();
     return s;
-  }, [mine, detail.data, decimalsMap]);
-  return { me, stats, score, isLoading: isLoading || detail.isLoading };
+  }, [mine, detail.data, decimalsMap, perCircle]);
+  return {
+    me, stats, score,
+    isLoading: isLoading || detail.isLoading || decimalsQ.isLoading || probeQ.isLoading,
+  };
 }
 
 /** ERC-8004 savings-credit score breakdown. */

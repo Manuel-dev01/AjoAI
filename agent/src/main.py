@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import os
 import sys
+import time
 from datetime import datetime, timedelta
 
 from apscheduler.executors.pool import ThreadPoolExecutor
@@ -92,7 +93,17 @@ def _sweep(agent, chain, log) -> None:
         log.info("metrics_exported", path=str(out))
         # Push to the miniapp so the live /api/metrics snapshot (Vercel Blob) stays fresh —
         # the agent and miniapp are separate deployments, so an HTTP ingest is the bridge.
-        _push_metrics(payload, log)
+        # THROTTLED: metrics change slowly and pushing every sweep (~360/day) blew the Vercel
+        # Blob Hobby quota and SUSPENDED the store. Push at most every ~30 min; the local
+        # export above still runs every sweep.
+        global _last_push_monotonic
+        now = time.monotonic()
+        if now - _last_push_monotonic >= _PUSH_MIN_INTERVAL:
+            _push_metrics(payload, log)
+            _last_push_monotonic = now
+        else:
+            log.info("metrics_push_throttled",
+                     nextInSec=round(_PUSH_MIN_INTERVAL - (now - _last_push_monotonic)))
     except Exception as e:  # noqa: BLE001 — never let metrics stall the sweep
         log.warning("metrics_export_error", error=str(e))
 
@@ -101,6 +112,10 @@ def _sweep(agent, chain, log) -> None:
 # dashboard Blob for days) escalates from a swallowed warning to a loud, counted error.
 _push_fail_streak = 0
 _PUSH_FAIL_LOUD_AT = 3
+
+# HTTP-push throttle (see _sweep): keep the Vercel Blob write frequency well under the Hobby quota.
+_last_push_monotonic = 0.0
+_PUSH_MIN_INTERVAL = float(os.getenv("AJOAI_PUSH_INTERVAL_SEC", "1800"))
 
 
 def _push_metrics(payload: dict, log) -> None:
@@ -154,12 +169,15 @@ def _demo_rotation(chain, log) -> None:
     """Operate one full self-funded circle end to end (real USD₮, recovered each cycle; only CELO
     gas is spent). Runs on the SAME single worker thread as the sweep, so the two never send txs
     concurrently on the shared agent key. Any failure is logged, never fatal."""
-    # A full cycle funds each member's gas (GAS_TOPUP = 0.03 + 0.012*slots CELO) AND spends the
-    # agent's own gas on create/start/contribute/payout/finalize. The old flat 0.05 CELO guard let
-    # the agent START a ~0.6+ CELO cycle it couldn't finish — stranding half-formed "Forming 0/N"
-    # circles and spamming insufficient-funds errors. Require enough for a WHOLE cycle (env-overridable).
-    slots = int(os.getenv("AJOAI_DEMO_SLOTS", "4"))
-    cycle_celo = (0.03 + 0.012 * slots) * slots + 0.35  # member top-ups + agent's own rotate/finalize gas
+    # A full cycle must fund each member's gas upfront (mainnet_seed GAS_TOPUP = a FLAT
+    # AJOAI_SEED_GAS_CELO, default 0.6, per member, over AJOAI_SEED_SLOTS members) PLUS the agent's
+    # own create/start/contribute/payout/finalize gas. The old guard used a different formula AND the
+    # wrong slot var (AJOAI_DEMO_SLOTS) — it under-estimated ~4x and let the agent START a cycle it
+    # couldn't finish, stranding half-formed circles. Derive from the SAME constants the seed uses.
+    slots = int(os.getenv("AJOAI_SEED_SLOTS", "3"))
+    gas_topup = float(os.getenv("AJOAI_SEED_GAS_CELO", "0.6"))
+    agent_gas = float(os.getenv("AJOAI_DEMO_AGENT_GAS_CELO", "0.6"))
+    cycle_celo = gas_topup * slots + agent_gas  # member top-ups (held upfront) + agent's own gas
     min_gas_wei = int(float(os.getenv("AJOAI_DEMO_MIN_CELO", str(round(cycle_celo, 3)))) * 1e18)
     bal = chain.gas_balance_wei()
     if bal < min_gas_wei:

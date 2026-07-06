@@ -69,6 +69,17 @@ def test_grace_elapsed_marks_then_pays():
     assert actions == ["mark_delinquent", "mark_delinquent", "trigger_payout"]
 
 
+def test_recipient_self_default_defers_payout():
+    # Bug-1 mitigation: the round recipient (0xA) missed their OWN round past grace. Mark them
+    # delinquent but do NOT trigger payout this pass — else the contract would pay the recipient
+    # out of their own forfeited deposit. Next pass sees recipient_delinquent -> withheld.
+    v = _view(contributed_this_round={"0xA": False, "0xB": True, "0xC": True, "0xD": True})
+    now = v.round_start + v.period + v.grace + 1
+    actions = [d.action for d in decide(v, now)]
+    assert actions == ["mark_delinquent"]  # only 0xA marked; no trigger_payout
+    assert "trigger_payout" not in actions
+
+
 def test_delinquent_recipient_withholds():
     v = _view(recipient_delinquent=True)
     now = v.round_start + v.period + v.grace + 1
