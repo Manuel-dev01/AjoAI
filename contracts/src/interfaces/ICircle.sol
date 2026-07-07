@@ -16,6 +16,7 @@ interface ICircle {
     // ─── FORMING ───────────────────────────────────────────
     function join(bytes calldata selfProof) external; // verify personhood + post deposit
     function setRotation(address[] calldata order) external; // organizer: recipient order
+    function setYieldAdapter(address adapter) external; // organizer: attach yield adapter pre-start
     function start() external; // FORMING -> Active
     function dissolve() external; // FORMING -> Dissolved (full refunds)
 
@@ -24,6 +25,7 @@ interface ICircle {
     function markDelinquent(address member) external; // agent: post-grace miss -> consume deposit
     function cure() external; // delinquent member re-deposits to clear delinquency
     function triggerPayout() external; // agent: pay current round's recipient the full pot
+    function forceDefaultUncured() external; // agent: settle a stuck (uncured-recipient) round after timeout
     function parkIdleFunds() external; // agent: idle funds -> yield
     function withdrawIdleFunds() external; // agent: yield -> contract before payout
 
@@ -52,6 +54,7 @@ interface ICircle {
     event Cured(address indexed member, uint256 redeposit);
     event IdleFundsParked(uint256 amount);
     event IdleFundsWithdrawn(uint256 amount, uint256 yieldAccrued);
+    event YieldAdapterSet(address adapter);
     event PaidOut(address indexed recipient, uint256 indexed round, uint256 pot);
     event PayoutWithheld(address indexed recipient, uint256 indexed round);
     event MemberExited(address indexed member, uint256 refund);

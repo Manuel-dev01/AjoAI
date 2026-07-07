@@ -132,8 +132,10 @@ contract AdversarialTest is Base {
     }
 
     // ── Default by a member who already received -> deposit forfeit, pro-rata on DEFAULT ─
-    function test_DefaultByAlreadyReceived_LeadsToDefaultedDistribution() public {
-        // 3-slot circle to make uncoverable shortfall easy to construct.
+    function test_DefaultByAlreadyReceived_DepositForfeitedRecipientWhole() public {
+        // 3-slot circle. A receives round 0. In round 1 (recipient B) the recipient B contributes,
+        // but A (already received) and C default past grace -> their deposits cover the shortfall,
+        // B is made whole, A's & C's deposits are forfeited, and the circle continues.
         vm.prank(organizer);
         address c = factory.createCircle(address(tok), CONTRIB, PERIOD, GRACE, PENALTY_BPS, 3);
         circle = Circle(c);
@@ -154,24 +156,106 @@ contract AdversarialTest is Base {
         _triggerPayout();
         assertTrue(circle.hasReceived(A));
 
-        // Round 1 (recipient B): A (already received) defaults AND C defaults.
-        // Only B contributes -> pot 100; deposits of A,C cover 200 -> 300 = pot. Actually coverable.
-        // To force uncoverable: B also fails. Nobody contributes round 1.
+        // Round 1 (recipient B): B pays; A (already received) and C default past grace.
+        _contribute(B);
         vm.warp(block.timestamp + PERIOD + GRACE + 1);
-        // pot needed = 300; available from deposits A,B,C = 300; so coverable -> B paid.
-        // Make it uncoverable: drain is impossible here, so instead assert the coverable path
-        // still makes the recipient whole (B), and A's deposit is consumed (forfeited).
         uint256 balB = tok.balanceOf(B);
         vm.prank(agent);
         circle.triggerPayout();
-        // If covered, B was paid and state still Active; if not, Defaulted.
-        if (circle.hasReceived(B)) {
-            assertEq(tok.balanceOf(B), balB + 3 * CONTRIB, "B made whole from deposits");
-            assertEq(circle.depositBalance(A), 0, "A deposit forfeited");
-            assertTrue(circle.isDelinquent(A));
-        } else {
-            assertEq(uint256(circle.state()), uint256(ICircle.State.Defaulted));
-        }
+
+        assertTrue(circle.hasReceived(B), "recipient B made whole");
+        assertEq(tok.balanceOf(B), balB + 3 * CONTRIB, "B receives full pot from A/C forfeited deposits");
+        assertEq(circle.depositBalance(A), 0, "already-received A deposit forfeited");
+        assertTrue(circle.isDelinquent(A));
+        assertTrue(circle.isDelinquent(C));
+        assertEq(uint256(circle.state()), uint256(ICircle.State.Active), "circle continues");
+    }
+
+    // ── BUG #1: a recipient who misses their OWN round is WITHHELD, not paid from their own deposit ─
+    function test_RecipientSelfDefault_WithheldNotPaid() public {
+        _joinAll();
+        vm.prank(organizer);
+        circle.start(); // rotation [A,B,C,D]; round-0 recipient = A
+
+        // Everyone EXCEPT the recipient A pays. A misses its own round. Agent does NOT pre-mark A.
+        _contribute(B);
+        _contribute(C);
+        _contribute(D);
+        vm.warp(block.timestamp + PERIOD + GRACE + 1);
+
+        uint256 balA = tok.balanceOf(A);
+        vm.expectEmit(true, true, false, false, address(circle));
+        emit ICircle.PayoutWithheld(A, 0);
+        _triggerPayout(); // _coverRound marks A delinquent; post-cover check must WITHHOLD
+
+        assertFalse(circle.hasReceived(A), "recipient not paid");
+        assertEq(tok.balanceOf(A), balA, "recipient received nothing");
+        assertTrue(circle.isDelinquent(A), "recipient marked delinquent");
+        assertEq(circle.currentRound(), 0, "no advance");
+        assertEq(uint256(circle.state()), uint256(ICircle.State.Active));
+        assertTrue(circle.withheldSince(0) != 0, "withhold timer stamped");
+    }
+
+    // ── BUG #2: an uncured delinquent recipient can be force-defaulted after the timeout ─
+    function test_ForceDefaultUncured_AfterTimeout() public {
+        _joinAll();
+        vm.prank(organizer);
+        circle.start();
+        _contribute(B);
+        _contribute(C);
+        _contribute(D);
+        vm.warp(block.timestamp + PERIOD + GRACE + 1);
+        _triggerPayout(); // A self-defaults -> withheld, withheldSince[0] set
+
+        // Before the timeout: force-default reverts.
+        vm.prank(agent);
+        vm.expectRevert(Circle.WindowNotElapsed.selector);
+        circle.forceDefaultUncured();
+
+        // A never cures. After withholdTimeout, the agent recovers the funds.
+        uint256 timeout = circle.withholdTimeout();
+        vm.warp(block.timestamp + timeout + 1);
+        vm.prank(agent);
+        circle.forceDefaultUncured();
+
+        assertEq(uint256(circle.state()), uint256(ICircle.State.Defaulted), "settled to Defaulted");
+        // Everything distributed pro-rata to not-yet-received members; nothing frozen.
+        (uint256 inSum, uint256 outSum) = circle.reconcile();
+        assertEq(inSum, outSum, "reconciles: no wei created or destroyed");
+        assertEq(tok.balanceOf(address(circle)), 0, "no funds frozen in the contract");
+    }
+
+    function test_ForceDefaultUncured_RevertsIfRecipientNotDelinquent() public {
+        _joinAll();
+        vm.prank(organizer);
+        circle.start();
+        _contribute(A);
+        _contribute(B);
+        _contribute(C);
+        _contribute(D); // all paid -> recipient A not delinquent
+        vm.prank(agent);
+        vm.expectRevert(Circle.NotDelinquent.selector);
+        circle.forceDefaultUncured();
+    }
+
+    // ── LOW: setYieldAdapter is organizer-only and Forming-only ─
+    function test_SetYieldAdapter_OrganizerFormingOnly() public {
+        address newAdapter = address(0xBEEF);
+        // organizer can set pre-start
+        vm.prank(organizer);
+        circle.setYieldAdapter(newAdapter);
+        assertEq(address(circle.yieldAdapter()), newAdapter);
+        // non-organizer reverts
+        vm.prank(A);
+        vm.expectRevert(Circle.NotOrganizer.selector);
+        circle.setYieldAdapter(address(0));
+        // after start -> wrong state
+        _joinAll();
+        vm.prank(organizer);
+        circle.start();
+        vm.prank(organizer);
+        vm.expectRevert(Circle.WrongState.selector);
+        circle.setYieldAdapter(address(0));
     }
 
     // ── Rounding: indivisible penalty pool, remainder to lowest-index eligible ─

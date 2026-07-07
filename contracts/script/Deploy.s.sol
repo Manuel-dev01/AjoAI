@@ -24,18 +24,24 @@ contract Deploy is Script {
         address agentAddr = vm.envOr("AGENT_ADDRESS", address(0));
         address selfVerifier = vm.envOr("SELF_VERIFIER", address(0));
         uint256 yieldBps = vm.envOr("YIELD_BPS", uint256(0));
+        // Redeploy (bug-fix Circle logic ⇒ new factory) can REUSE the existing ledger + yield adapter
+        // so on-chain reputation history + the ERC-8004 agentId writer identity are preserved. The
+        // deployer must be the ledger owner (it is — same key deployed it). Empty ⇒ deploy fresh.
+        address reuseRep = vm.envOr("REUSE_REPUTATION", address(0));
+        address reuseYield = vm.envOr("REUSE_YIELD", address(0));
 
         vm.startBroadcast();
         address deployer = msg.sender;
         if (agentAddr == address(0)) agentAddr = deployer;
 
-        ReputationLedger rep = new ReputationLedger();
-        SimulatedYieldAdapter yield_ = new SimulatedYieldAdapter(uint16(yieldBps));
-        CircleFactory factory =
-            new CircleFactory(agentAddr, selfVerifier, address(rep), address(yield_));
+        address repAddr = reuseRep != address(0) ? reuseRep : address(new ReputationLedger());
+        address yieldAddr =
+            reuseYield != address(0) ? reuseYield : address(new SimulatedYieldAdapter(uint16(yieldBps)));
+        CircleFactory factory = new CircleFactory(agentAddr, selfVerifier, repAddr, yieldAddr);
 
-        // Let the factory auto-authorize each new circle as a reputation writer.
-        rep.setRegistrar(address(factory), true);
+        // Authorize the NEW factory to register each circle it spawns as a reputation writer.
+        // On a reused ledger this only ADDS the new factory (old circles keep their writer rights).
+        ReputationLedger(repAddr).setRegistrar(address(factory), true);
 
         vm.stopBroadcast();
 
@@ -43,11 +49,11 @@ contract Deploy is Script {
         console2.log("deployer:        ", deployer);
         console2.log("agent:           ", agentAddr);
         console2.log("selfVerifier:    ", selfVerifier);
-        console2.log("ReputationLedger:", address(rep));
-        console2.log("YieldAdapter:    ", address(yield_));
+        console2.log("ReputationLedger:", repAddr, reuseRep != address(0) ? "(reused)" : "(new)");
+        console2.log("YieldAdapter:    ", yieldAddr, reuseYield != address(0) ? "(reused)" : "(new)");
         console2.log("CircleFactory:   ", address(factory));
 
-        _writeDeployments(chain, address(factory), address(rep), address(yield_), agentAddr);
+        _writeDeployments(chain, address(factory), repAddr, yieldAddr, agentAddr);
     }
 
     function _writeDeployments(
