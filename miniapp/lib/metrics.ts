@@ -64,7 +64,7 @@ const WITHDRAW_TOPIC = keccak256(toHex("SimulatedWithdraw(address,address,uint25
 // Factory deployment blocks — floor the event scan (mirrors agent/src/metrics.py _DEPLOY_BLOCK).
 const DEPLOY_BLOCK: Record<number, bigint> = {
   11142220: 27_135_283n, // celoSepolia
-  42220: 69_477_069n, // celo mainnet
+  42220: 71_485_599n, // celo mainnet — new factory redeploy (2026-07-07)
 };
 
 const AGENT_ADDR = (activeChain.testnet

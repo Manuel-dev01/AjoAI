@@ -9,10 +9,12 @@ export { celo, celoSepolia };
 
 // Deployed AjoAI addresses per chain (config/addresses.<chain>.json). Never hardcoded elsewhere.
 const MAINNET_CONTRACTS = {
-  circleFactory: "0xE2401Ab2ea9E4c68cBA9946e4079cd7eF4d82186",
+  // Redeployed 2026-07-07 with the bug-fix Circle logic (#1/#2 + setYieldAdapter). Old factory
+  // 0xE2401Ab2… and its circles are orphaned (immutable). Ledger + yield adapter reused.
+  circleFactory: "0xeDEC01aCD4AA71F7c8751ac62Fe6cC18eFF82D70",
   reputationLedger: "0xd2f340Fe1616aB5190F326A6f127f852F5C5Ed04",
   yieldAdapter: "0xF9293905e64c39C5856CE4Aa895ab7c80F62014d", // emits SimulatedDeposit/Withdraw
-  demoCircle: "0x4D03D887c3bB293623A8aF842DB80B4680a5E11F", // completed real-USDT rotation
+  demoCircle: "0x4D03D887c3bB293623A8aF842DB80B4680a5E11F", // completed real-USDT rotation (legacy)
 } as const;
 const SEPOLIA_CONTRACTS = {
   circleFactory: "0x032fEE1776508fE59bA715120Bc190b682162191",

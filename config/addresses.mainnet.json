@@ -18,17 +18,13 @@
   "self": { "hub": null, "_note": "Self verifier address TBD in Phase 3 via self.xyz SDK" },
   "yield": { "venue": null, "_note": "Confirm a real Aave/Mento pool before enabling; else SIMULATE_YIELD=true" },
   "deployments": {
-    "_deployedAt": "2026-06-13, Celo mainnet (block 69477069)",
-    "circleFactory": "0xE2401Ab2ea9E4c68cBA9946e4079cd7eF4d82186",
+    "_deployedAt": "2026-07-07, Celo mainnet (block 71485599) — factory REDEPLOY (bugfix #1/#2 + setYieldAdapter); reused ledger + yield adapter + agent key (agentId 9339 preserved)",
+    "circleFactory": "0xeDEC01aCD4AA71F7c8751ac62Fe6cC18eFF82D70",
+    "circleFactoryLegacy": "0xE2401Ab2ea9E4c68cBA9946e4079cd7eF4d82186",
+    "_legacyNote": "Pre-fix factory. Its circles are immutable/orphaned — not serviced by the re-pointed agent. Healthy ones may still be completed manually; Bug-2-frozen ones have no on-chain remedy.",
     "reputationLedger": "0xd2f340Fe1616aB5190F326A6f127f852F5C5Ed04",
     "yieldAdapter": "0xF9293905e64c39C5856CE4Aa895ab7c80F62014d",
-    "agent": "0x8974881E39a5eF62214929B6CaA6EC0C6e7D47c7",
-    "deployTxs": {
-      "reputationLedger": "0x9a13a4c4d23782a6c021243fe82fd02dfd39668004b77e415d8f95f5428c4452",
-      "yieldAdapter": "0x8bb28603fd589a6d080b1760e0002fcb2d1e4aa8e2d05dada99e6d8260298aea",
-      "circleFactory": "0x7fdd3fbb993cbaa5e34770a64d0900950c50067b876b785098e433013f11d1cd",
-      "setRegistrar": "0x94abc89c725780176af6cb35d68aa34bf9a4282f9f8e6b63d9647f94bb6a90a5"
-    }
+    "agent": "0x8974881E39a5eF62214929B6CaA6EC0C6e7D47c7"
   },
   "feeCurrencyDefault": "USDm"
 }
