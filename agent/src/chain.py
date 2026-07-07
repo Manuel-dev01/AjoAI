@@ -48,6 +48,8 @@ class CircleView:
     yield_adapter: str  # address(0) if none configured
     balance: int  # contract's current token balance (idle funds, excludes parked)
     token: str = ""  # the circle's ERC20 (decimals vary: USDT/USDC 6, USDm/NGNm 18)
+    withheld_since: int = 0  # ts the current round's payout was first withheld (0 = not withheld)
+    withhold_timeout: int = 0  # after this long withheld, agent may force-default (0 = unsupported)
 
     STATE_NAMES = ["Forming", "Active", "Completed", "Defaulted", "Dissolved"]
 
@@ -109,6 +111,7 @@ class ChainClient:
         cr = c.functions.currentRound().call()
 
         rotation, recipient, recip_delq, contributed = [], None, False, {}
+        withheld_since, withhold_timeout = 0, 0
         if state == 1:  # Active -> rotation is set
             rotation = [c.functions.rotation(i).call() for i in range(slots)]
             if cr < slots:
@@ -116,6 +119,11 @@ class ChainClient:
                 recip_delq = c.functions.isDelinquent(recipient).call()
             for m in members:
                 contributed[m] = c.functions.contributedInRound(cr, m).call()
+            try:  # recovery-path fields; absent on legacy-factory circles → stay 0 (no force-default)
+                withhold_timeout = c.functions.withholdTimeout().call()
+                withheld_since = c.functions.withheldSince(cr).call()
+            except Exception:  # noqa: BLE001
+                pass
 
         yield_adapter = c.functions.yieldAdapter().call()
         token_addr = c.functions.token().call()
@@ -144,6 +152,8 @@ class ChainClient:
             yield_adapter=yield_adapter,
             balance=balance,
             token=Web3.to_checksum_address(token_addr),
+            withheld_since=withheld_since,
+            withhold_timeout=withhold_timeout,
         )
 
     def now(self) -> int:
@@ -187,6 +197,9 @@ class ChainClient:
 
     def mark_delinquent(self, addr: str, member: str) -> dict:
         return self._send(self.circle(addr).functions.markDelinquent(member))
+
+    def force_default(self, addr: str) -> dict:
+        return self._send(self.circle(addr).functions.forceDefaultUncured())
 
     def park_idle(self, addr: str) -> dict:
         return self._send(self.circle(addr).functions.parkIdleFunds())

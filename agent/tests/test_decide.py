@@ -69,22 +69,30 @@ def test_grace_elapsed_marks_then_pays():
     assert actions == ["mark_delinquent", "mark_delinquent", "trigger_payout"]
 
 
-def test_recipient_self_default_defers_payout():
-    # Bug-1 mitigation: the round recipient (0xA) missed their OWN round past grace. Mark them
-    # delinquent but do NOT trigger payout this pass — else the contract would pay the recipient
-    # out of their own forfeited deposit. Next pass sees recipient_delinquent -> withheld.
+def test_recipient_self_default_triggers_withholding_payout():
+    # Recipient 0xA misses their OWN round past grace. The FIXED contract's triggerPayout withholds
+    # them safely (never pays from their own forfeited deposit), so the agent marks + triggers.
     v = _view(contributed_this_round={"0xA": False, "0xB": True, "0xC": True, "0xD": True})
     now = v.round_start + v.period + v.grace + 1
     actions = [d.action for d in decide(v, now)]
-    assert actions == ["mark_delinquent"]  # only 0xA marked; no trigger_payout
-    assert "trigger_payout" not in actions
+    assert actions == ["mark_delinquent", "trigger_payout"]
 
 
-def test_delinquent_recipient_withholds():
-    v = _view(recipient_delinquent=True)
-    now = v.round_start + v.period + v.grace + 1
-    assert decide(v, now)[0].action == "wait"
-    assert "withheld" in decide(v, now)[0].reason
+def test_delinquent_recipient_stamps_timer_first():
+    # Recipient delinquent, timer not yet started -> a safe no-pay triggerPayout stamps withheldSince.
+    v = _view(recipient_delinquent=True, withheld_since=0)
+    assert decide(v, now=9999)[0].action == "trigger_payout"
+
+
+def test_delinquent_recipient_waits_within_timeout():
+    v = _view(recipient_delinquent=True, withheld_since=1000, withhold_timeout=500)
+    assert decide(v, now=1200)[0].action == "wait"  # 1200 < 1000+500
+
+
+def test_delinquent_recipient_force_defaults_after_timeout():
+    # Never cured; timeout elapsed -> recover funds via force_default (Bug #2).
+    v = _view(recipient_delinquent=True, withheld_since=1000, withhold_timeout=500)
+    assert [d.action for d in decide(v, now=1600)] == ["force_default"]  # 1600 >= 1000+500
 
 
 def test_all_rounds_paid_finalizes():

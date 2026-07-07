@@ -28,7 +28,11 @@ contract Circle is ICircle, ReentrancyGuard {
 
     ISelfVerifier public immutable selfVerifier; // address(0) => OPEN dev mode (loud)
     IReputation public immutable reputation; // address(0) => no-op
-    IYieldAdapter public yieldAdapter; // optional; settable by organizer pre-start
+    IYieldAdapter public yieldAdapter; // optional; settable by organizer pre-start (setYieldAdapter)
+
+    // After a round's recipient has been withheld (delinquent) this long without curing, the agent
+    // can force the circle to DEFAULTED so funds are never permanently frozen (CLAUDE.md §4).
+    uint256 public immutable withholdTimeout;
 
     uint256 internal constant BPS = 10_000;
 
@@ -55,6 +59,7 @@ contract Circle is ICircle, ReentrancyGuard {
     mapping(uint256 => uint256) public roundPot; // funded amount earmarked for round r
     mapping(uint256 => mapping(address => bool)) public contributedInRound;
     mapping(uint256 => mapping(address => bool)) internal _defaultHandled;
+    mapping(uint256 => uint256) public withheldSince; // round -> first-withheld timestamp (0 = not withheld)
 
     // Reconciliation totals (CLAUDE.md §1.10 — no wei created/destroyed)
     uint256 public totalDepositsIn;
@@ -140,6 +145,9 @@ contract Circle is ICircle, ReentrancyGuard {
         selfVerifier = ISelfVerifier(c.selfVerifier);
         reputation = IReputation(c.reputation);
         yieldAdapter = IYieldAdapter(c.yieldAdapter);
+        // Cure window before a stuck (uncured-delinquent recipient) round can be force-defaulted.
+        // Derived from the circle's own cadence: two full round-windows. No extra config needed.
+        withholdTimeout = 2 * (c.period + c.graceWindow);
         state = State.Forming;
     }
 
@@ -224,6 +232,13 @@ contract Circle is ICircle, ReentrancyGuard {
         currentRound = 0;
         roundStartTime = block.timestamp;
         emit CircleStarted(block.timestamp, slots);
+    }
+
+    /// @notice Attach/replace the yield adapter before the circle starts. Previously the "settable
+    /// pre-start" comment had no setter, so a circle created with yieldAdapter==0 could never park.
+    function setYieldAdapter(address adapter) external onlyOrganizer inState(State.Forming) {
+        yieldAdapter = IYieldAdapter(adapter);
+        emit YieldAdapterSet(adapter);
     }
 
     function dissolve() external nonReentrant onlyOrganizer inState(State.Forming) {
@@ -347,9 +362,10 @@ contract Circle is ICircle, ReentrancyGuard {
         uint256 cr = currentRound;
         address recipient = rotation[cr];
 
-        // Recipient-is-delinquent: WITHHELD (not skipped). No state change; agent retries post-cure.
+        // Recipient-is-delinquent (from a prior round): WITHHELD (not skipped). No state change; the
+        // agent retries post-cure, or force-defaults after withholdTimeout (never a permanent freeze).
         if (isDelinquent[recipient]) {
-            emit PayoutWithheld(recipient, cr);
+            _withhold(cr, recipient);
             return;
         }
 
@@ -358,6 +374,13 @@ contract Circle is ICircle, ReentrancyGuard {
             // Need grace to have elapsed so post-grace misses can be covered from deposits.
             if (block.timestamp < graceClose(cr)) revert WindowNotElapsed();
             _coverRound(cr);
+            // BUG FIX: _coverRound may have just marked the RECIPIENT delinquent — they missed their
+            // OWN round. Withhold instead of paying them the pot out of their own forfeited deposit
+            // (CLAUDE.md §4: recipient-is-delinquent => withheld until cured).
+            if (isDelinquent[recipient]) {
+                _withhold(cr, recipient);
+                return;
+            }
         }
 
         uint256 available = roundPot[cr] + penaltyPool;
@@ -395,6 +418,26 @@ contract Circle is ICircle, ReentrancyGuard {
                 _handleDefault(cr, m);
             }
         }
+    }
+
+    /// @dev Record a withheld payout (stamp the cure-timer once) and emit. No tokens move.
+    function _withhold(uint256 cr, address recipient) internal {
+        if (withheldSince[cr] == 0) withheldSince[cr] = block.timestamp;
+        emit PayoutWithheld(recipient, cr);
+    }
+
+    /// @notice Recovery path for a round whose recipient is delinquent and never cures — otherwise
+    /// `triggerPayout` withholds forever and `finalize` reverts (roundsPaid != slots), freezing every
+    /// deposit + pot. After `withholdTimeout` past the first withhold, the agent settles to DEFAULTED,
+    /// distributing remaining funds pro-rata to not-yet-received members (CLAUDE.md §4).
+    function forceDefaultUncured() external nonReentrant onlyAgent inState(State.Active) {
+        if (parkedAmount != 0) revert MustWithdrawIdleFirst(); // recall principal first
+        uint256 cr = currentRound;
+        address recipient = rotation[cr];
+        if (!isDelinquent[recipient]) revert NotDelinquent(); // cured or never withheld -> use triggerPayout
+        uint256 since = withheldSince[cr];
+        if (since == 0 || block.timestamp < since + withholdTimeout) revert WindowNotElapsed();
+        _defaultSettle();
     }
 
     function _defaultSettle() internal {
