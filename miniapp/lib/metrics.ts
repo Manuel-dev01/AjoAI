@@ -460,9 +460,26 @@ export function readCommittedSnapshot(): Metrics | null {
   return (committedSnapshot as Metrics) ?? null;
 }
 
-// Freshest available snapshot: Blob (production, refreshed by cron) else committed file.
+// The agent (on Railway) serves its freshest snapshot over HTTP from its volume — this replaces
+// Vercel Blob (which hit the Hobby quota and got suspended). A plain HTTPS fetch is serverless-
+// friendly (no TCP DB pooling) and there is no write quota to blow.
+export async function readAgentSnapshot(): Promise<Metrics | null> {
+  const url = process.env.AGENT_METRICS_URL;
+  if (!url) return null;
+  try {
+    const res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(2500) });
+    if (!res.ok) return null;
+    const d = (await res.json()) as Metrics;
+    // Ignore an empty/placeholder body (e.g. the agent hasn't written a snapshot yet).
+    return typeof (d as { circlesCreated?: unknown }).circlesCreated === "number" ? d : null;
+  } catch {
+    return null;
+  }
+}
+
+// Freshest available snapshot: the agent's Railway HTTP endpoint, else the committed file floor.
 export async function readSnapshot(): Promise<Metrics | null> {
-  return (await readBlobSnapshot()) ?? readCommittedSnapshot();
+  return (await readAgentSnapshot()) ?? readCommittedSnapshot();
 }
 
 export async function writeBlobSnapshot(data: Metrics): Promise<boolean> {
