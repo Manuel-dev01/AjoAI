@@ -91,6 +91,17 @@ def _sweep(agent, chain, log) -> None:
         out = REPO_ROOT / "miniapp" / "public" / "data" / "metrics.json"
         collector.export_json(snap, out, frontend=True)
         log.info("metrics_exported", path=str(out))
+        # Persist to the Railway volume so the snapshot HTTP server (metrics_server) can serve it to
+        # the miniapp. This REPLACES the Vercel-Blob dependency (which hit the Hobby quota) — it's a
+        # free local file write, so it runs every sweep (unthrottled), unlike the HTTP push below.
+        try:
+            import json as _json
+            from .metrics_server import SNAPSHOT_PATH
+            os.makedirs(os.path.dirname(SNAPSHOT_PATH), exist_ok=True)
+            with open(SNAPSHOT_PATH, "w", encoding="utf-8") as f:
+                _json.dump(payload, f)
+        except Exception as e:  # noqa: BLE001 — serving is best-effort, never stall the sweep
+            log.warning("snapshot_write_error", error=str(e))
         # Push to the miniapp so the live /api/metrics snapshot (Vercel Blob) stays fresh —
         # the agent and miniapp are separate deployments, so an HTTP ingest is the bridge.
         # THROTTLED: metrics change slowly and pushing every sweep (~360/day) blew the Vercel
@@ -297,7 +308,7 @@ def main() -> None:
             if arg == "--json" and i + 1 < len(sys.argv):
                 json_path = sys.argv[i + 1]
         if json_path:
-            collector.export_json(snap, json_path)
+            collector.export_json(snap, json_path, frontend=True)
             log.info("metrics_exported", path=json_path)
         return
 
@@ -312,6 +323,10 @@ def main() -> None:
         interval = int(sys.argv[2]) if len(sys.argv) > 2 else int(os.getenv("AJOAI_SWEEP_SECONDS", "120"))
         agent = Agent(settings, chain)
         log.info("serve_all_start", intervalSeconds=interval, factory=settings.factory)
+        # Serve the latest snapshot over HTTP (Railway domain) so the miniapp can fetch it —
+        # replaces the suspended Vercel Blob. Daemon thread; never blocks the scheduler.
+        from .metrics_server import start_snapshot_server
+        start_snapshot_server(log)
         # One worker thread so every job serialises and never sends two txs concurrently on the
         # shared agent key (nonce-safe). All jobs are single-instance.
         sched = BlockingScheduler(executors={"default": ThreadPoolExecutor(1)})
