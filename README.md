@@ -17,7 +17,7 @@ score.
 A rotating savings circle: a group each contributes a fixed amount every period,
 and each period one member receives the whole pot, until everyone has received
 exactly once. AjoAI makes each circle an autonomous agent that:
-1. Onboards members inside MiniPay (wallet-based, one wallet = one slot; the join path carries a Self proof-of-personhood slot, live gating on the roadmap).
+1. Onboards members inside MiniPay (wallet-based: **one wallet = one slot**, enforced on-chain; the join path already carries a Self proof-of-personhood argument, with live personhood gating on the roadmap).
 2. Custodies + collects fixed contributions in a local stablecoin.
 3. Executes the payout rotation automatically, **no human in the loop**.
 4. Parks idle pot funds in yield between payouts.
@@ -35,14 +35,21 @@ All contracts source-verified on [Celoscan](https://celoscan.io) (Sourcify exact
 
 | Contract | Role | Address |
 |---|---|---|
-| CircleFactory | spawns circles, bakes in the agent | [`0xE2401Ab2…2186`](https://celoscan.io/address/0xE2401Ab2ea9E4c68cBA9946e4079cd7eF4d82186) |
+| CircleFactory | spawns circles, bakes in the agent | [`0xeDEC01aC…82D70`](https://celoscan.io/address/0xeDEC01aCD4AA71F7c8751ac62Fe6cC18eFF82D70) |
 | ReputationLedger | ERC-8004 savings-credit signals | [`0xd2f340Fe…Ed04`](https://celoscan.io/address/0xd2f340Fe1616aB5190F326A6f127f852F5C5Ed04) |
 | YieldAdapter *(simulated, loud)* | idle-fund parking interface | [`0xF9293905…014d`](https://celoscan.io/address/0xF9293905e64c39C5856CE4Aa895ab7c80F62014d) |
 | **Circle** | the escrow that holds the pot + enforces every rule | **one deployed per circle** by the factory — e.g. [`0x4D03…E11F`](https://celoscan.io/address/0x4D03D887c3bB293623A8aF842DB80B4680a5E11F) |
 
 The first three are fixed singletons; **`Circle`** is the core money contract — the factory deploys a
-fresh, source-verified instance on every `createCircle` (the address above is the completed real-USD₮
+fresh, source-verified instance on every `createCircle` (the address above is a completed real-USD₮
 proof circle). So the on-chain footprint is **four contract types**, with a new `Circle` per savings group.
+
+> The `CircleFactory` above is a bug-fixed redeploy (a self-defaulting recipient is now withheld,
+> never mis-paid from their own forfeited deposit; a never-cured withheld round can be force-defaulted
+> so funds can't freeze). It **reuses the same `ReputationLedger`**, so member savings-credit history
+> and **agentId 9339** carry over — no ERC-8004 re-registration. Circles from the pre-fix factory
+> ([`0xE2401Ab2…2186`](https://celoscan.io/address/0xE2401Ab2ea9E4c68cBA9946e4079cd7eF4d82186)) are
+> immutable and remain on-chain.
 
 **ERC-8004 agent identity:** registered as **agentId 9339** on the mainnet Identity Registry
 (`0x8004A169…`), [8004scan](https://8004scan.io/agents/celo/9339) (track #3, Celo mainnet rank).
@@ -71,7 +78,7 @@ The agent runs as an always-on Railway worker (`run-all 30`) sweeping the mainne
   save in your own currency. (Mento rebranded cUSD→USDm, cNGN→NGNm.)
 - **MiniPay**, in-wallet onboarding + distribution to 15M+ wallets.
 - **CIP-64 fee abstraction**, pay gas in stablecoins, no CELO needed.
-- **Self**, ZK proof-of-personhood: the contract enforces one slot per human and the join path carries a Self-proof argument; the verifier runs open-mode today, live gating is on the roadmap.
+- **Self**, ZK proof-of-personhood: the contract enforces **one slot per wallet** (via `usedHuman`) and the join path already carries a Self-proof argument; the verifier runs open-mode today, so true one-human-one-slot gating is on the roadmap.
 - **ERC-8004**, portable agent identity + savings reputation (Identity + Reputation).
 - **x402**, premium endpoints (guarantor score, analytics) for other agents (planned).
 
@@ -86,8 +93,8 @@ The agent runs as an always-on Railway worker (`run-all 30`) sweeping the mainne
 ## Repository
 | Path | What |
 |---|---|
-| `/contracts` | Solidity (Foundry), `Circle`, `CircleFactory`, adapters; **25 tests** (worked example, adversarial, invariants) |
-| `/agent` | Python runtime (perceive→reason→act→settle), NL handler, ERC-8004 registration; **18 tests** |
+| `/contracts` | Solidity (Foundry), `Circle`, `CircleFactory`, adapters; **29 tests** (worked example, adversarial, invariants) |
+| `/agent` | Python runtime (perceive→reason→act→settle), NL handler, ERC-8004 registration; **30 tests** |
 | `/miniapp` | MiniPay Mini App (viem/wagmi): create / join / pay / activity / score / Ask, plus a read-only **MCP server** (`/api/mcp`) so other agents can query AjoAI |
 | `/config` | Per-chain addresses + ABIs + agent card |
 

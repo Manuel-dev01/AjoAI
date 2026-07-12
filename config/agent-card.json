@@ -44,7 +44,7 @@
   ],
   "selfAgentId": null,
   "contracts": {
-    "circleFactory.celoMainnet": "0xE2401Ab2ea9E4c68cBA9946e4079cd7eF4d82186",
+    "circleFactory.celoMainnet": "0xeDEC01aCD4AA71F7c8751ac62Fe6cC18eFF82D70",
     "reputationLedger.celoMainnet": "0xd2f340Fe1616aB5190F326A6f127f852F5C5Ed04",
     "circleFactory.celoSepolia": "0x032fEE1776508fE59bA715120Bc190b682162191",
     "reputationLedger.celoSepolia": "0x12Ac76Fd85500fd1dF47D6bF15B6B275eA3FB3Ce"

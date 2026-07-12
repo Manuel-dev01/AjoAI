@@ -196,7 +196,7 @@ export function MetricsDashboard({ data }: { data: Metrics }) {
       </Section>
 
       <Section title="Capital efficiency — idle-fund yield">
-        <Row k="Strategy" v={`${apyLabel()} · Aave V3 Celo (sim)`} color="var(--green)" />
+        <Row k="Strategy" v={`${apyLabel()} · Aave V3 Celo · simulated`} color="var(--green)" />
         <Row
           k="Yield earned"
           v={`${fmt(data.totalYield ?? "0")} tokens`}

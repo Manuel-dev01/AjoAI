@@ -67,6 +67,23 @@ def test_delinquent_recipient_message():
     assert "cure" in f.baseline_answer().lower()
 
 
+def test_member_in_terminal_circle_does_not_project_future_round():
+    # Money-accuracy edge: a member of a DEFAULTED circle whose slot never came up must NOT be told
+    # "your payout is in N rounds" — the rotation is over. current_round is stale in terminal states.
+    v = _view(current_round=1, recipient="0xB")  # 0xD's slot (index 3) never reached
+    v.state = 3  # Defaulted
+    f = facts_for(v, "0xD")
+    a = f.baseline_answer().lower()
+    assert "default" in a
+    assert "round(s)" not in a and "your payout is in" not in a
+
+    v.state = 2  # Completed
+    assert "completed" in facts_for(v, "0xD").baseline_answer().lower()
+
+    v.state = 4  # Dissolved
+    assert "dissolved" in facts_for(v, "0xD").baseline_answer().lower()
+
+
 def test_answer_without_key_returns_baseline():
     f = facts_for(_view(current_round=0), "0xB")
     # no api key -> deterministic baseline, no network
