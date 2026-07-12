@@ -104,6 +104,12 @@ export function baselineAnswer(f: MemberFacts): string {
     if (f.state === "Dissolved") return "This circle was dissolved while still forming and all deposits were refunded.";
     return `This circle is active with ${f.slots} members; you are not a member of it.`;
   }
+  // Terminal state (member): NEVER project a future round — the rotation is over. `currentRound` is
+  // stale here, so the round arithmetic below would mis-tell a member "your payout is in N rounds"
+  // for a circle that already ended (money-inaccurate, CLAUDE.md §8). State the outcome instead.
+  if (f.state === "Completed") return "This circle has completed — every member received the pot once, and clean-completion security deposits were returned.";
+  if (f.state === "Defaulted") return "This circle ended in default. Remaining funds and deposits were distributed pro-rata to members who had not yet received; the rotation did not finish normally.";
+  if (f.state === "Dissolved") return "This circle was dissolved before it started and every deposit was refunded in full.";
   if (f.isDelinquent) {
     return (
       "You are currently marked delinquent (a missed contribution past grace). " +

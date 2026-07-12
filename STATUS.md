@@ -1,6 +1,6 @@
 # AjoAI Project Status
 
-Last updated: 2026-06-15.
+Last updated: 2026-07-12.
 
 AjoAI is an autonomous rotating-savings (ajo / esusu / chama / stokvel) agent on Celo,
 distributed as a MiniPay Mini App. The contract holds the money and enforces every rule; the
@@ -13,12 +13,19 @@ below, plus the per-circle `Circle` escrow the factory deploys on every `createC
 
 | Component | Address / value |
 |---|---|
-| CircleFactory | `0xE2401Ab2ea9E4c68cBA9946e4079cd7eF4d82186` |
+| CircleFactory | `0xeDEC01aCD4AA71F7c8751ac62Fe6cC18eFF82D70` |
+| CircleFactory (pre-fix, orphaned) | `0xE2401Ab2ea9E4c68cBA9946e4079cd7eF4d82186` |
 | ReputationLedger | `0xd2f340Fe1616aB5190F326A6f127f852F5C5Ed04` |
 | YieldAdapter (SimulatedYieldAdapter, loud sim) | `0xF9293905e64c39C5856CE4Aa895ab7c80F62014d` |
 | Circle (escrow, one per circle) | per-circle; proof instance `0x4D03D887c3bB293623A8aF842DB80B4680a5E11F` |
 | Agent (baked into factory) | `0x8974881E39a5eF62214929B6CaA6EC0C6e7D47c7` |
 | ERC-8004 agent identity | agentId 9339 (Identity Registry `0x8004A169…`), https://8004scan.io/agents/celo/9339 |
+
+The `CircleFactory` was **redeployed 2026-07-07** (block 71485599) with the audited bug fixes to
+`Circle.sol` (see "Contract hardening" below). It **reuses** the same `ReputationLedger`, yield adapter,
+and agent key, so member savings-credit history and **agentId 9339 stay valid — no ERC-8004
+re-registration**. The pre-fix factory's circles are immutable and remain on-chain (orphaned: the
+re-pointed agent services only new-factory circles); the dashboard therefore counts from the new factory.
 
 A real-money autonomous rotation has completed on mainnet: a 3-member circle in real Tether
 USD₮ (6 decimals) where the agent triggered all three payouts and finalize. Circle
@@ -36,17 +43,19 @@ canonical, shipped deployment** — all proof/addresses above are mainnet.
 
 ## Implementation
 - Contracts (Foundry): `Circle`, `CircleFactory`, `ReputationLedger`, `SimulatedYieldAdapter`,
-  interfaces and mocks. 25 tests pass: the worked example to the unit, adversarial cases
+  interfaces and mocks. 29 tests pass: the worked example to the unit, adversarial cases
   (double-trigger, reentrancy on payout and yield, contribute-after-default,
-  recipient-delinquent withhold and cure, default by an already-received member, rounding
-  drift), and 3 invariants (value conservation, received == roundsPaid, delinquent recipient
-  unpaid) at 256x8192 calls with 0 reverts.
+  recipient-delinquent withhold and cure, recipient self-default is withheld not paid,
+  force-default of a never-cured withheld round, default by an already-received member,
+  `setYieldAdapter` organizer/Forming-only, rounding drift), and 3 invariants (value
+  conservation, received == roundsPaid, delinquent recipient unpaid) at 256x8192 calls with 0 reverts.
 - Agent (Python, web3.py): perceive, reason, act, settle loop with rule-based decisions
   (now including `park_idle`/`withdraw_idle` of idle pot funds around the yield adapter), an
   idempotent scheduler, structlog tx-hash-linked logs, ERC-8004 registration, a natural-language
   handler (English, Nigerian Pidgin, Swahili; LLM rephrasing via DeepSeek, falling back to a
-  deterministic chain-derived answer when no key is set), and a fund-safe mainnet seed runner.
-  18 tests pass.
+  deterministic chain-derived answer when no key is set — which now states the terminal outcome
+  for members of a Completed/Defaulted/Dissolved circle instead of projecting a stale future round),
+  and a fund-safe mainnet seed runner. 30 tests pass.
 - Frontend (Next.js, viem/wagmi): Market Blocks landing page plus the MiniPay app (home, create,
   join, state-aware circle dashboard, pay, activity, score, and an "Ask" tab for natural-language
   member Q&A backed by `/app/api/ask`, a TS port of the agent's NL layer). Injected auto-connect
@@ -125,11 +134,25 @@ A2A + MCP report healthy; email/DID are identifiers (not health-probed by design
 - **Roadmap (needs a mainnet redeploy, deferred):** real `AaveYieldAdapter` (Aave V3 Celo) with
   time-based accrual; a protocol **Treasury Reserve** (10–20% yield split) — both require new contracts.
 
-## Known gap (future contract work)
-- A delinquent recipient who never cures **freezes the circle**: `triggerPayout` withholds and the agent
-  waits indefinitely — there is no on-chain path to skip the slot and redistribute without `cure()`.
-  Resolving it autonomously needs a `Circle.sol` change + mainnet redeploy (e.g. a "force-default a
-  long-withheld round" trigger). The cure CTA is the near-term unblock.
+## Contract hardening (2026-07-07 redeploy — fixes two audited money-path bugs)
+A double-verified audit surfaced two HIGH `Circle.sol` bugs; both are fixed in the redeployed factory
+(`0xeDEC01aC…82D70`), reusing the existing ledger + adapter + agent key:
+- **#1 — self-defaulting recipient mis-paid.** Previously `triggerPayout` could pay a recipient who
+  missed their **own** round out of their own just-forfeited deposit. Now, after `_coverRound`, a
+  delinquent recipient is **withheld** (`_withhold` stamps `withheldSince`, emits `PayoutWithheld`) and
+  never paid — matching the "withhold, don't skip" rule (CLAUDE.md §4).
+- **#2 — never-cured withheld round froze the circle** (this was the former "known gap"). Added an
+  immutable `withholdTimeout = 2·(period + graceWindow)` and `forceDefaultUncured()` (`onlyAgent`,
+  Active, `parkedAmount == 0`): once the timeout elapses on an uncured withheld round, the agent routes
+  the circle to `Defaulted` and the existing `_defaultSettle()` distributes remaining funds + deposits
+  pro-rata to members who have not yet received. Funds can no longer freeze indefinitely; the `cure()`
+  CTA remains the human fast-path before the timeout.
+- **LOW — `setYieldAdapter(address) onlyOrganizer inState(Forming)`** added, making the "settable
+  pre-start" adapter comment true (was previously constructor-only).
+
+The agent loop (`decide()`) now stamps the withhold timer via a safe no-pay `triggerPayout`, waits
+through the timeout, then `force_default`s an uncured round (the earlier no-redeploy mitigation was
+reverted — the fixed contract is self-safe). Covered by new adversarial + invariant tests.
 
 ## Submission
 - **Published** via the Celo Builders Skill (`celo-onchain-agents`) for all three tracks

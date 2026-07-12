@@ -18,7 +18,7 @@ Next.js (App Router) + viem/wagmi. Live: https://ajo-ai-tan.vercel.app
 | `/api/mcp` | Read-only **MCP server** (JSON-RPC): `get_circle` / `get_score` / `ask` / `list_circles` for agent interop |
 
 Every app screen reads/writes the real contracts (mainnet factory
-`0xE2401Ab2…2186`, ReputationLedger `0xd2f340Fe…Ed04`; Sepolia equivalents for dev).
+`0xeDEC01aC…82D70`, ReputationLedger `0xd2f340Fe…Ed04`; Sepolia equivalents for dev).
 Addresses live in `lib/chain.ts` (mirrors `config/addresses.<chain>.json`). No fake
 data, honest empty states.
 

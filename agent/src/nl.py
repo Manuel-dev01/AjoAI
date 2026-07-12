@@ -73,6 +73,18 @@ class MemberFacts:
             if self.state == "Dissolved":
                 return "This circle was dissolved while still forming and all deposits were refunded."
             return f"This circle is active with {self.slots} members; you are not a member of it."
+        # Terminal state (member): NEVER project a future round — the rotation is over. `current_round`
+        # is stale here, so the round arithmetic below would mis-tell a member "your payout is in N
+        # rounds" for a circle that already ended (money-inaccurate, CLAUDE.md §8). State the outcome.
+        if self.state == "Completed":
+            return "This circle has completed — every member received the pot once, and clean-completion security deposits were returned."
+        if self.state == "Defaulted":
+            return (
+                "This circle ended in default. Remaining funds and deposits were distributed pro-rata "
+                "to members who had not yet received; the rotation did not finish normally."
+            )
+        if self.state == "Dissolved":
+            return "This circle was dissolved before it started and every deposit was refunded in full."
         if self.is_delinquent:
             return (
                 "You are currently marked delinquent (a missed contribution past grace). "
