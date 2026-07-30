@@ -118,18 +118,29 @@ IPFS is **not** required — the registry and both indexers accept `https:` and 
   `--verify` (on-chain URI vs served card), and an idempotency guard — `register()` mints a fresh
   ERC-721 on *every* call, so a re-run previously risked a duplicate agent.
 
-### The 8004scan clamp is a scorer race, not a defect (important)
+### The 8004scan clamp is 8004scan-side, not a defect in our endpoints (important)
 `GET /api/v1/agents/42220/9339` returns two contradicting blocks. Top-level `health_status` says
-**a2a healthy, mcp healthy, health_score 100**; `scores` — computed ~13h *earlier* — has
-`health_score: null`, which trips `notes: ["no core A2A/MCP health data"]` →
-`integrity_tier: "no-core-service"` → `score_band {floor: 22, ceiling: 40}` → published **36.87**.
-The underlying `merit_score` is **82.63** with `proof_score: 100` and `evidence_tier:
-"battle-tested"`; banded like the leaders (78–95) that is ≈92. The health checker and the scorer
-are separate jobs and AjoAI was the only Celo agent sampled with `health_score: null`. The inverse
-also happens: Toppa (#2, 92.80) is 404 on both A2A and MCP right now and keeps its band from a
-frozen passing snapshot. **Do not chase this as a bug in our endpoints — they pass.** Also note
-`is_endpoint_verified: false` is a `vercel.app` artifact (`"Third-party hosting domain"`) that the
-top agents fail too; only a custom domain fixes it.
+**a2a healthy, mcp healthy, health_score 100** (their probe enumerated our 4 MCP tools and parsed
+our AgentCard). But `scores.health_score` is **null**, which trips
+`notes: ["no core A2A/MCP health data"]` → `integrity_tier: "no-core-service"` →
+`score_band {floor: 22, ceiling: 40}` → published **36.87**. The underlying `merit_score` is
+**82.62** with `proof_score: 100` and `evidence_tier: "battle-tested"`; banded like the leaders
+(78–95) that is ≈92. AjoAI was the only Celo agent sampled with `health_score: null`.
+
+The health checker and the scorer are decoupled jobs, and the scorer has now failed to consume a
+passing health record in **both** directions — first scoring 13h *before* the health check
+(2026-07-29 23:50 vs 07-30 13:05), then scoring 6h42m *after* it (07-30 19:47 vs 13:05) and still
+recording null. So it is not simple ordering; the scorer appears to want health data fresher than
+it has, and both jobs are theirs. The inverse case proves the clamp tracks the snapshot rather
+than reality: Toppa (#2, 92.80) is 404 on both A2A and MCP yet keeps its band from a frozen
+passing value. **Do not chase this as a bug in our endpoints — they pass their own probe.**
+`is_endpoint_verified: false` is likewise a `vercel.app` artifact (`"Third-party hosting domain"`)
+that the top agents fail too; only a custom domain fixes it.
+
+**What the card work did move** (re-indexed within ~60s of the `setAgentURI` nudge):
+`supported_protocols` gained **OASF**, `x402_supported` **false → true**, `metadata_completeness`
+**83 → 87** (level with the #1-ranked agent), `categories` and `tags` now populate (11 tags — the
+previously empty arrays were the stale snapshot, not a parsing failure).
 
 ### Two gotchas worth remembering
 - **8004scan caches the card.** Its indexed copy was months stale (still showing the pre-July-7
