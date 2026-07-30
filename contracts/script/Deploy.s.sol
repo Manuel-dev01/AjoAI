@@ -35,8 +35,9 @@ contract Deploy is Script {
         if (agentAddr == address(0)) agentAddr = deployer;
 
         address repAddr = reuseRep != address(0) ? reuseRep : address(new ReputationLedger());
-        address yieldAddr =
-            reuseYield != address(0) ? reuseYield : address(new SimulatedYieldAdapter(uint16(yieldBps)));
+        address yieldAddr = reuseYield != address(0)
+            ? reuseYield
+            : address(new SimulatedYieldAdapter(uint16(yieldBps)));
         CircleFactory factory = new CircleFactory(agentAddr, selfVerifier, repAddr, yieldAddr);
 
         // Authorize the NEW factory to register each circle it spawns as a reputation writer.
@@ -50,7 +51,9 @@ contract Deploy is Script {
         console2.log("agent:           ", agentAddr);
         console2.log("selfVerifier:    ", selfVerifier);
         console2.log("ReputationLedger:", repAddr, reuseRep != address(0) ? "(reused)" : "(new)");
-        console2.log("YieldAdapter:    ", yieldAddr, reuseYield != address(0) ? "(reused)" : "(new)");
+        console2.log(
+            "YieldAdapter:    ", yieldAddr, reuseYield != address(0) ? "(reused)" : "(new)"
+        );
         console2.log("CircleFactory:   ", address(factory));
 
         _writeDeployments(chain, address(factory), repAddr, yieldAddr, agentAddr);

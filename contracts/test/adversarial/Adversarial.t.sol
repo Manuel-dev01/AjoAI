@@ -164,7 +164,9 @@ contract AdversarialTest is Base {
         circle.triggerPayout();
 
         assertTrue(circle.hasReceived(B), "recipient B made whole");
-        assertEq(tok.balanceOf(B), balB + 3 * CONTRIB, "B receives full pot from A/C forfeited deposits");
+        assertEq(
+            tok.balanceOf(B), balB + 3 * CONTRIB, "B receives full pot from A/C forfeited deposits"
+        );
         assertEq(circle.depositBalance(A), 0, "already-received A deposit forfeited");
         assertTrue(circle.isDelinquent(A));
         assertTrue(circle.isDelinquent(C));
