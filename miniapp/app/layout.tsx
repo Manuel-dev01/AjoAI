@@ -29,6 +29,23 @@ export const metadata: Metadata = {
     shortcut: "/icon.png",
     apple: "/icon.png",
   },
+  // Link unfurls previously fell back to nothing. /cover.png is the same banner the ERC-8004
+  // agent card uses as its `cover`, so a shared link and a marketplace listing look identical.
+  openGraph: {
+    type: "website",
+    siteName: "AjoAI",
+    title: "AjoAI | Save like your village always has",
+    description:
+      "A rotating savings circle (ajo/esusu/chama/stokvel) run by an autonomous agent, inside MiniPay on Celo.",
+    url: "/",
+    images: [{ url: "/cover.png", width: 1200, height: 630, alt: "AjoAI — autonomous rotating savings on Celo" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "AjoAI | Save like your village always has",
+    description: "Autonomous rotating savings (ajo/esusu/chama) on Celo, inside MiniPay.",
+    images: ["/cover.png"],
+  },
   // TalentApp project verification tag (renders <meta name="talentapp:project_verification" ...> in <head>).
   other: {
     "talentapp:project_verification":

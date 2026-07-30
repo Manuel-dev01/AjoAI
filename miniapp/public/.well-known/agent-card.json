@@ -3,10 +3,12 @@
   "name": "AjoAI",
   "description": "Autonomous rotating-savings (ajo/esusu/chama/stokvel) agent on Celo. Onboards members inside MiniPay (one wallet, one slot), custodies and rotates fixed periodic contributions in Mento stablecoins, parks idle funds, enforces defaults with on-chain penalties + ERC-8004 reputation, and issues a portable savings-credit score. Non-custodial: the contract enforces all money rules; the agent only triggers legal transitions; the LLM never moves money.",
   "image": "https://ajo-ai-tan.vercel.app/icon.png",
+  "cover": "https://ajo-ai-tan.vercel.app/cover.png",
   "url": "https://ajo-ai-tan.vercel.app",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "active": true,
-  "x402Support": false,
+  "onAigora": true,
+  "x402Support": true,
   "publisher": {
     "name": "AjoAI",
     "url": "https://ajo-ai-tan.vercel.app",
@@ -15,31 +17,189 @@
     "contact": "emmanuelolamiye@gmail.com"
   },
   "services": [
-    { "name": "web", "type": "web", "endpoint": "https://ajo-ai-tan.vercel.app" },
-    { "name": "A2A", "type": "a2a", "endpoint": "https://ajo-ai-tan.vercel.app/api/a2a", "version": "0.3.0", "skills": ["rosca.create", "rosca.contribute", "rosca.payout", "rosca.default-recovery", "rosca.reputation", "nl.query"] },
-    { "name": "MCP", "type": "mcp", "endpoint": "https://ajo-ai-tan.vercel.app/api/mcp", "version": "2025-06-18", "mcpTools": ["get_circle", "get_score", "ask", "list_circles"] },
-    { "name": "metrics", "type": "metrics", "endpoint": "https://ajo-ai-tan.vercel.app/api/metrics", "description": "Live on-chain metrics: circles, members, contributions, payouts, reputation signals, agent txs." },
-    { "name": "DID", "type": "did", "endpoint": "did:pkh:eip155:42220:0x8974881E39a5eF62214929B6CaA6EC0C6e7D47c7", "version": "v1" },
-    { "name": "email", "type": "email", "endpoint": "emmanuelolamiye@gmail.com" }
+    {
+      "name": "web",
+      "endpoint": "https://ajo-ai-tan.vercel.app/api/invoke",
+      "price": "0.05",
+      "description": "Savings-credit underwriting report for a wallet: ERC-8004 history, live circle exposure, risk band, and a suggested credit limit. Paid in USDC over x402 (Celo facilitator); GET the same URL for the free offer description."
+    },
+    {
+      "name": "A2A",
+      "endpoint": "https://ajo-ai-tan.vercel.app/api/a2a",
+      "version": "0.3.0",
+      "skills": [
+        "rosca.create",
+        "rosca.contribute",
+        "rosca.payout",
+        "rosca.default-recovery",
+        "rosca.reputation",
+        "nl.query",
+        "metrics"
+      ]
+    },
+    {
+      "name": "MCP",
+      "endpoint": "https://ajo-ai-tan.vercel.app/api/mcp",
+      "version": "2025-06-18",
+      "mcpTools": [
+        "get_circle",
+        "get_score",
+        "ask",
+        "list_circles"
+      ]
+    },
+    {
+      "name": "OASF",
+      "endpoint": "https://github.com/agntcy/oasf/",
+      "version": "0.8.0",
+      "skills": [
+        "tool_interaction/workflow_automation",
+        "tool_interaction/api_schema_understanding",
+        "analytical_skills/mathematical_reasoning/math_word_problems",
+        "natural_language_processing/analytical_reasoning/problem_solving",
+        "natural_language_processing/language_translation/translation",
+        "natural_language_processing/information_retrieval_synthesis/question_answering"
+      ],
+      "domains": [
+        "finance_and_business/banking",
+        "finance_and_business/retail",
+        "technology/blockchain",
+        "trust_and_safety/risk_management"
+      ]
+    },
+    {
+      "name": "metrics",
+      "endpoint": "https://ajo-ai-tan.vercel.app/api/metrics",
+      "description": "Live on-chain metrics: circles, members, contributions, payouts, reputation signals, agent txs."
+    },
+    {
+      "name": "DID",
+      "endpoint": "did:pkh:eip155:42220:0x8974881E39a5eF62214929B6CaA6EC0C6e7D47c7",
+      "version": "v1"
+    },
+    {
+      "name": "email",
+      "endpoint": "emmanuelolamiye@gmail.com"
+    }
   ],
-  "provider": { "name": "AjoAI", "url": "https://ajo-ai-tan.vercel.app" },
+  "categories": [
+    "automation",
+    "data"
+  ],
+  "external_links": [
+    {
+      "platform": "website",
+      "url": "https://ajo-ai-tan.vercel.app"
+    },
+    {
+      "platform": "github",
+      "url": "https://github.com/Manuel-dev01/AjoAI"
+    },
+    {
+      "platform": "x",
+      "url": "https://x.com/ajo_ai_"
+    }
+  ],
+  "provider": {
+    "name": "AjoAI",
+    "url": "https://ajo-ai-tan.vercel.app"
+  },
   "skills": [
-    { "id": "rosca.create", "name": "Create circle", "description": "Deploy a savings circle with fixed contribution, period, and rotation.", "tags": ["defi", "savings", "roscas", "financial-inclusion"] },
-    { "id": "rosca.contribute", "name": "Collect contributions", "description": "Pull each member's periodic contribution in a Mento stablecoin.", "tags": ["payments", "stablecoins", "celo"] },
-    { "id": "rosca.payout", "name": "Autonomous payout", "description": "Pay the full pot to the round's recipient on schedule, no human in the loop.", "tags": ["autonomous", "payments", "agent"] },
-    { "id": "rosca.default-recovery", "name": "Default recovery", "description": "Cover missed rounds from security deposits; write negative ERC-8004 reputation.", "tags": ["risk", "reputation", "enforcement"] },
-    { "id": "rosca.reputation", "name": "Savings-credit score", "description": "Issue a portable ERC-8004 savings-credit score per member.", "tags": ["reputation", "identity", "credit"] },
-    { "id": "nl.query", "name": "Natural-language member Q&A", "description": "Answer member questions in English, Nigerian Pidgin, and Swahili (explains chain state; never authorizes money).", "tags": ["nlp", "multilingual", "support"] },
-    { "id": "metrics", "name": "On-chain metrics", "description": "Live aggregate stats: circles created, contributions, payouts, defaults recovered, reputation signals, agent tx count.", "tags": ["analytics", "transparency", "on-chain"] }
+    {
+      "id": "rosca.create",
+      "name": "Create circle",
+      "description": "Deploy a savings circle with fixed contribution, period, and rotation.",
+      "tags": [
+        "defi",
+        "savings",
+        "roscas",
+        "financial-inclusion"
+      ]
+    },
+    {
+      "id": "rosca.contribute",
+      "name": "Collect contributions",
+      "description": "Pull each member's periodic contribution in a Mento stablecoin.",
+      "tags": [
+        "payments",
+        "stablecoins",
+        "celo"
+      ]
+    },
+    {
+      "id": "rosca.payout",
+      "name": "Autonomous payout",
+      "description": "Pay the full pot to the round's recipient on schedule, no human in the loop.",
+      "tags": [
+        "autonomous",
+        "payments",
+        "agent"
+      ]
+    },
+    {
+      "id": "rosca.default-recovery",
+      "name": "Default recovery",
+      "description": "Cover missed rounds from security deposits; write negative ERC-8004 reputation.",
+      "tags": [
+        "risk",
+        "reputation",
+        "enforcement"
+      ]
+    },
+    {
+      "id": "rosca.reputation",
+      "name": "Savings-credit score",
+      "description": "Issue a portable ERC-8004 savings-credit score per member.",
+      "tags": [
+        "reputation",
+        "identity",
+        "credit"
+      ]
+    },
+    {
+      "id": "nl.query",
+      "name": "Natural-language member Q&A",
+      "description": "Answer member questions in English, Nigerian Pidgin, and Swahili (explains chain state; never authorizes money).",
+      "tags": [
+        "nlp",
+        "multilingual",
+        "support"
+      ]
+    },
+    {
+      "id": "metrics",
+      "name": "On-chain metrics",
+      "description": "Live aggregate stats: circles created, contributions, payouts, defaults recovered, reputation signals, agent tx count.",
+      "tags": [
+        "analytics",
+        "transparency",
+        "on-chain"
+      ]
+    }
   ],
   "registrations": [
-    { "agentId": 9339, "agentRegistry": "eip155:42220:0x8004A169FB4a3325136EB29fA0ceB6D2e539a432" },
-    { "agentId": 307, "agentRegistry": "eip155:11142220:0x8004A818BFB912233c491871b3d84c89A494BD9e" }
+    {
+      "agentId": 9339,
+      "agentRegistry": "eip155:42220:0x8004A169FB4a3325136EB29fA0ceB6D2e539a432"
+    },
+    {
+      "agentId": 307,
+      "agentRegistry": "eip155:11142220:0x8004A818BFB912233c491871b3d84c89A494BD9e"
+    }
   ],
-  "supportedTrust": ["reputation", "identity"],
+  "supportedTrust": [
+    "reputation",
+    "identity"
+  ],
   "trustMechanisms": [
-    { "type": "reputation", "description": "ERC-8004 on-chain reputation signals for contribution timeliness and default behavior" },
-    { "type": "identity", "description": "Self ZK proof-of-personhood for sybil-resistant membership" }
+    {
+      "type": "reputation",
+      "description": "ERC-8004 on-chain reputation signals for contribution timeliness and default behavior"
+    },
+    {
+      "type": "identity",
+      "description": "Self ZK proof-of-personhood for sybil-resistant membership"
+    }
   ],
   "selfAgentId": null,
   "contracts": {
@@ -49,14 +209,26 @@
     "reputationLedger.celoSepolia": "0x12Ac76Fd85500fd1dF47D6bF15B6B275eA3FB3Ce"
   },
   "framework": "custom (Python web3.py); LLM = DeepSeek (NL handler only, never moves money)",
-  "capabilities": [
-    "autonomous-financial-transactions",
-    "on-chain-reputation",
-    "multi-language-nlp",
-    "stablecoin-payments",
-    "yield-optimization",
-    "sybil-resistance"
+  "capabilities": {
+    "streaming": false,
+    "pushNotifications": false,
+    "x402": true
+  },
+  "chains": [
+    "eip155:42220",
+    "eip155:11142220"
   ],
-  "chains": ["eip155:42220", "eip155:11142220"],
-  "tags": ["defi", "savings", "roscas", "financial-inclusion", "celo", "stablecoins", "autonomous-agent", "reputation"]
+  "tags": [
+    "defi",
+    "savings",
+    "roscas",
+    "financial-inclusion",
+    "celo",
+    "stablecoins",
+    "autonomous-agent",
+    "reputation",
+    "x402",
+    "credit-scoring",
+    "minipay"
+  ]
 }

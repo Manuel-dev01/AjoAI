@@ -15,12 +15,14 @@ const MAINNET_CONTRACTS = {
   reputationLedger: "0xd2f340Fe1616aB5190F326A6f127f852F5C5Ed04",
   yieldAdapter: "0xF9293905e64c39C5856CE4Aa895ab7c80F62014d", // emits SimulatedDeposit/Withdraw
   demoCircle: "0x4D03D887c3bB293623A8aF842DB80B4680a5E11F", // completed real-USDT rotation (legacy)
+  agentWallet: "0x8974881E39a5eF62214929B6CaA6EC0C6e7D47c7", // ERC-8004 agentId 9339; x402 payee
 } as const;
 const SEPOLIA_CONTRACTS = {
   circleFactory: "0x032fEE1776508fE59bA715120Bc190b682162191",
   reputationLedger: "0x12Ac76Fd85500fd1dF47D6bF15B6B275eA3FB3Ce",
   yieldAdapter: "0x22b1AA6022AfE68F5F019229Bf785D8083cD3640",
   demoCircle: "0xc578127F2978896ef1b4995CE44D780C89676cb4",
+  agentWallet: "0x5b92F8A222704d522Fb3dCf8d734C3DAF51Fc4f1", // ERC-8004 agentId 307
 } as const;
 export const CONTRACTS = activeChain.testnet ? SEPOLIA_CONTRACTS : MAINNET_CONTRACTS;
 

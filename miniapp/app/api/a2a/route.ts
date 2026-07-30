@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import erc8004Card from "@/public/.well-known/agent-card.json";
 
 // AjoAI A2A endpoint (Agent2Agent protocol, JSON-RPC 2.0 over HTTP).
 // GET  → the A2A Agent Card (discovery). POST → A2A JSON-RPC methods.
@@ -9,7 +10,7 @@ import { NextResponse } from "next/server";
 
 const BASE = "https://ajo-ai-tan.vercel.app";
 const PROTOCOL_VERSION = "0.3.0";
-const VERSION = "0.1.0";
+const VERSION = "0.2.0";
 
 // Open CORS so any agent/scanner (incl. browser-based health probes) can reach this endpoint —
 // a missing preflight/CORS is the usual reason a live endpoint reads as "unknown" to a checker.
@@ -20,14 +21,10 @@ const CORS = {
   "Access-Control-Max-Age": "86400",
 } as const;
 
-const SKILLS = [
-  { id: "rosca.create", name: "Create circle", description: "Deploy a savings circle with fixed contribution, period, and rotation.", tags: ["rosca", "savings", "celo"] },
-  { id: "rosca.contribute", name: "Collect contributions", description: "Pull each member's periodic contribution in a Mento stablecoin.", tags: ["rosca", "payments", "stablecoin"] },
-  { id: "rosca.payout", name: "Autonomous payout", description: "Pay the full pot to the round's recipient on schedule, no human in the loop.", tags: ["rosca", "autonomous", "payout"] },
-  { id: "rosca.default-recovery", name: "Default recovery", description: "Cover missed rounds from security deposits; write negative ERC-8004 reputation.", tags: ["rosca", "reputation", "erc-8004"] },
-  { id: "rosca.reputation", name: "Savings-credit score", description: "Issue a portable ERC-8004 savings-credit score per member.", tags: ["reputation", "credit", "erc-8004"] },
-  { id: "nl.query", name: "Natural-language member Q&A", description: "Answer member questions in English, Nigerian Pidgin, and Swahili (explains chain state; never authorizes money).", tags: ["nlp", "multilingual", "read-only"] },
-];
+// Single source of truth for skills: the ERC-8004 registration card that the on-chain agentURI
+// points at. Its {id, name, description, tags} entries are already the A2A skill shape, so the two
+// surfaces cannot drift apart the way they previously did (6 skills here vs 7 in the card).
+const SKILLS = erc8004Card.skills;
 
 const AGENT_CARD = {
   protocolVersion: PROTOCOL_VERSION,
@@ -36,6 +33,7 @@ const AGENT_CARD = {
     "Autonomous rotating-savings (ajo/esusu/chama/stokvel) agent on Celo. A2A surface is read-only: query circles, scores, and member status in natural language. The contract enforces every money rule; the agent never moves funds via A2A.",
   url: `${BASE}/api/a2a`,
   preferredTransport: "JSONRPC",
+  additionalInterfaces: [{ url: `${BASE}/api/a2a`, transport: "JSONRPC" }],
   version: VERSION,
   iconUrl: `${BASE}/icon.png`,
   documentationUrl: BASE,
@@ -43,6 +41,12 @@ const AGENT_CARD = {
   capabilities: { streaming: false, pushNotifications: false, stateTransitionHistory: false },
   defaultInputModes: ["text/plain", "application/json"],
   defaultOutputModes: ["text/plain", "application/json"],
+  // Public and unauthenticated by design: everything this surface returns is already public chain
+  // state. An empty `security` says "no requirements" explicitly rather than leaving it unstated.
+  securitySchemes: {},
+  security: [],
+  // The extended card is byte-identical to this one — there is no gated extra detail to promise.
+  supportsAuthenticatedExtendedCard: false,
   skills: SKILLS,
 };
 

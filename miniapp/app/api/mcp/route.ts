@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { createPublicClient, http, isAddress, getAddress, formatUnits, type Address } from "viem";
 import { circleAbi, erc20Abi, factoryAbi, reputationAbi, STATE_NAMES } from "@/lib/abi";
@@ -14,12 +15,22 @@ const PROTOCOL_VERSION = "2025-06-18";
 const SERVER = { name: "AjoAI", version: "0.1.0" };
 
 // Open CORS so any agent/scanner (incl. browser-based health probes) can reach this endpoint.
+// Mcp-Session-Id must be exposed, or a browser client can never read the id we issue.
 const CORS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, Mcp-Session-Id, MCP-Protocol-Version",
+  "Access-Control-Expose-Headers": "Mcp-Session-Id",
   "Access-Control-Max-Age": "86400",
 } as const;
+
+// Streamable HTTP sessions. The server is stateless per request (every tool call reads chain state
+// fresh), so a session is just an issued id we accept back — it exists to satisfy the transport,
+// not to hold state. Serverless instances are ephemeral and not shared, so ids are NOT tracked in
+// memory: any well-formed id we could have issued is honoured. Nothing is authorised by it.
+const SESSION_HEADER = "Mcp-Session-Id";
+const SESSION_RE = /^[0-9a-f]{32}$/;
+const newSessionId = () => randomUUID().replace(/-/g, "");
 
 const client = () => createPublicClient({ chain: activeChain, transport: http() });
 
@@ -179,14 +190,29 @@ export async function POST(req: Request) {
   let body: RpcReq;
   try { body = await req.json(); } catch { return NextResponse.json({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "Parse error" } }, { status: 400, headers: CORS }); }
   const { id, method, params } = body;
-  const ok = (result: unknown) => NextResponse.json({ jsonrpc: "2.0", id: id ?? null, result }, { headers: CORS });
+
+  // A client that sends a session id must send one we could have issued.
+  const session = req.headers.get(SESSION_HEADER);
+  if (session && !SESSION_RE.test(session)) {
+    return NextResponse.json({ jsonrpc: "2.0", id: id ?? null, error: { code: -32600, message: "Invalid session" } }, { status: 404, headers: CORS });
+  }
+  // `initialize` mints the session; every later response echoes whichever id the client presented.
+  const issued = method === "initialize" ? newSessionId() : session;
+  const headers = issued ? { ...CORS, [SESSION_HEADER]: issued } : CORS;
+  const ok = (result: unknown) => NextResponse.json({ jsonrpc: "2.0", id: id ?? null, result }, { headers });
 
   // Notifications (no id) expect no response body.
-  if (id === undefined && typeof method === "string" && method.startsWith("notifications/")) return new NextResponse(null, { status: 202, headers: CORS });
+  if (id === undefined && typeof method === "string" && method.startsWith("notifications/")) return new NextResponse(null, { status: 202, headers });
 
   switch (method) {
     case "initialize":
-      return ok({ protocolVersion: PROTOCOL_VERSION, capabilities: { tools: {} }, serverInfo: SERVER });
+      // We speak exactly one revision; the client decides whether it can live with it.
+      return ok({
+        protocolVersion: PROTOCOL_VERSION,
+        capabilities: { tools: { listChanged: false } },
+        serverInfo: SERVER,
+        instructions: "Read-only AjoAI tools. Query savings circles, member scores, and circle state on Celo. Nothing here moves money.",
+      });
     case "ping":
       return ok({});
     case "tools/list":
@@ -198,11 +224,39 @@ export async function POST(req: Request) {
       return ok({ content: [{ type: "text", text }], isError: Boolean(isError) });
     }
     default:
-      return NextResponse.json({ jsonrpc: "2.0", id: id ?? null, error: { code: -32601, message: `Method not found: ${method}` } }, { status: 200, headers: CORS });
+      return NextResponse.json({ jsonrpc: "2.0", id: id ?? null, error: { code: -32601, message: `Method not found: ${method}` } }, { status: 200, headers });
   }
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  // Streamable HTTP: an Accept: text/event-stream GET opens the server->client notification
+  // stream. This server never initiates requests (all four tools are request/response), so the
+  // stream carries only keep-alive comments and stays open until the client drops it — which is
+  // exactly what the transport expects of a server with nothing to push.
+  if ((req.headers.get("accept") ?? "").includes("text/event-stream")) {
+    const stream = new ReadableStream({
+      start(controller) {
+        const enc = new TextEncoder();
+        controller.enqueue(enc.encode(": ajoai mcp stream open\n\n"));
+        const tick = setInterval(() => {
+          try { controller.enqueue(enc.encode(": keep-alive\n\n")); } catch { clearInterval(tick); }
+        }, 15_000);
+        // Vercel functions are time-bounded; close cleanly so clients reconnect rather than hang.
+        setTimeout(() => { clearInterval(tick); try { controller.close(); } catch { /* already closed */ } }, 240_000);
+      },
+    });
+    return new NextResponse(stream, {
+      headers: { ...CORS, "Content-Type": "text/event-stream", "Cache-Control": "no-cache, no-transform", Connection: "keep-alive" },
+    });
+  }
   // Lightweight discovery for humans / health checks (MCP itself uses POST JSON-RPC).
   return NextResponse.json({ name: SERVER.name, protocol: "mcp", protocolVersion: PROTOCOL_VERSION, transport: "streamable-http", tools: TOOLS.map((t) => t.name) }, { headers: CORS });
+}
+
+export async function DELETE(req: Request) {
+  // Session teardown. Nothing is retained server-side, so this always succeeds for a well-formed
+  // id — it exists so a spec-compliant client can end its session explicitly.
+  const session = req.headers.get(SESSION_HEADER);
+  if (session && !SESSION_RE.test(session)) return new NextResponse(null, { status: 404, headers: CORS });
+  return new NextResponse(null, { status: 204, headers: CORS });
 }
