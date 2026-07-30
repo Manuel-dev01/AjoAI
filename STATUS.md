@@ -91,6 +91,55 @@ using the canonical `agentRegistry` CAIP form (clears 8004scan WA012), a resolva
 (`/icon.png`, the RingMark), and a live `provider` URL. Re-crawls were nudged via `setAgentURI(9339)`.
 A2A + MCP report healthy; email/DID are identifiers (not health-probed by design).
 
+## AIGORA marketplace listing + paid x402 service (2026-07-30)
+**AIGORA does not run its own registry** — it indexes the canonical ERC-8004 Identity Registry on
+Celo (`0x8004A169…a432`) and lists what it finds. AjoAI already holds **agentId 9339** there, so
+listing was a card upgrade + one `setAgentURI`, *not* a second mint. Going through AIGORA's web form
+would have minted a duplicate agent with zero engagement history (9339 carries 68 feedbacks and
+quality 92.86). The form's on-chain step is just `register(shellURI)` → `setAgentURI(ipfs://…)`;
+IPFS is **not** required — the registry and both indexers accept `https:` and `data:` URIs (the
+#1-ranked Celo agent uses a bare `data:` URI), so the hosted card URI is unchanged.
+
+- **Card** now matches AIGORA's serializer: an `OASF` service carrying inline skills/domains from
+  AIGORA's curated allowlist (an older OASF vintage — 8004scan flags slug mismatches as `IA027`,
+  Info only), plus `cover` / `onAigora` / `categories` / `external_links`, `capabilities` as an
+  object, and exactly **7 services** (the serializer's cap). All three top-ranked Celo agents carry
+  the OASF badge; AjoAI had none, which is most of the `metadata_completeness` 83 vs 87–91 gap.
+- **Paid service:** `POST /api/invoke`, **0.05 USDC over x402** — a savings-credit underwriting
+  report (ERC-8004 history, live circle exposure, risk band, suggested credit limit). This is the
+  roadmap's under-collateralized-credit primitive, made real. `x402Support` flipped to `true` only
+  because payment is now enforced (§1.9). Deterministic: no model inference in the assessment.
+- **MCP/A2A hardened** so the card's claims are true: the MCP route advertised
+  `transport: "streamable-http"` while implementing neither SSE nor sessions — it now issues
+  `Mcp-Session-Id`, serves an SSE stream on `Accept: text/event-stream`, and supports `DELETE`
+  teardown. A2A gained `securitySchemes`/`security` and now derives its skills from the ERC-8004
+  card, so the old 6-vs-7 skill drift cannot recur.
+- **`register_agent.py`** gained a card validator (AIGORA's constraints, run before any tx),
+  `--verify` (on-chain URI vs served card), and an idempotency guard — `register()` mints a fresh
+  ERC-721 on *every* call, so a re-run previously risked a duplicate agent.
+
+### The 8004scan clamp is a scorer race, not a defect (important)
+`GET /api/v1/agents/42220/9339` returns two contradicting blocks. Top-level `health_status` says
+**a2a healthy, mcp healthy, health_score 100**; `scores` — computed ~13h *earlier* — has
+`health_score: null`, which trips `notes: ["no core A2A/MCP health data"]` →
+`integrity_tier: "no-core-service"` → `score_band {floor: 22, ceiling: 40}` → published **36.87**.
+The underlying `merit_score` is **82.63** with `proof_score: 100` and `evidence_tier:
+"battle-tested"`; banded like the leaders (78–95) that is ≈92. The health checker and the scorer
+are separate jobs and AjoAI was the only Celo agent sampled with `health_score: null`. The inverse
+also happens: Toppa (#2, 92.80) is 404 on both A2A and MCP right now and keeps its band from a
+frozen passing snapshot. **Do not chase this as a bug in our endpoints — they pass.** Also note
+`is_endpoint_verified: false` is a `vercel.app` artifact (`"Third-party hosting domain"`) that the
+top agents fail too; only a custom domain fixes it.
+
+### Two gotchas worth remembering
+- **8004scan caches the card.** Its indexed copy was months stale (still showing the pre-July-7
+  orphaned factory) while the live card was correct. A `setAgentURI` tx is what forces a re-crawl —
+  so **deploy first, verify the live card, then nudge**, or the nudge re-caches the old document.
+  `register_agent.py --verify` is exactly this check.
+- **Vercel project mapping.** `.vercel/repo.json` lists a project `ajo-ai-tan` whose id now 404s.
+  The live domain `ajo-ai-tan.vercel.app` is owned by the project **`ajo-ai`** (`prj_TjjfDF…`),
+  linked from `miniapp/` and git-connected to `master` — so pushing to master is the deploy.
+
 ## Frontend UX hardening (2026-06-15)
 - Circle dashboard is now window-aware: it reads the contract's `windowClose`/`graceClose` and gates
   the Pay tab — within the window "Pay", in grace "Pay · late", past grace it stops offering Pay (which
