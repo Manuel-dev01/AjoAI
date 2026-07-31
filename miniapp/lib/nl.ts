@@ -125,3 +125,104 @@ export function baselineAnswer(f: MemberFacts): string {
   }
   return `Circle state is ${f.state}; the pot is ${f.intendedPotStr}.`;
 }
+
+// ---------------------------------------------------------------------------
+// Shared LLM layer. Used by BOTH the HTTP route (app/app/api/ask) and the MCP
+// `ask` tool, so an agent and a human get the same answer for the same question.
+// ---------------------------------------------------------------------------
+
+export type ChatTurn = { role: "user" | "assistant"; content: string };
+
+/** Why an answer came back deterministic — surfaced to the caller instead of failing silently. */
+export type AnswerMode = "llm" | "baseline";
+export type AnswerResult = { answer: string; mode: AnswerMode; reason?: string };
+
+// History is attacker-controlled input to a paid API, so it is bounded on both axes.
+export const MAX_HISTORY_TURNS = 6;
+export const MAX_HISTORY_CHARS = 400;
+
+/**
+ * Coerce untrusted `history` into at most MAX_HISTORY_TURNS well-formed turns.
+ * Anything malformed is dropped rather than rejected — a bad history should degrade the answer,
+ * never fail the request.
+ */
+export function sanitizeHistory(raw: unknown): ChatTurn[] {
+  if (!Array.isArray(raw)) return [];
+  const out: ChatTurn[] = [];
+  for (const t of raw) {
+    const role = (t as ChatTurn)?.role;
+    const content = (t as ChatTurn)?.content;
+    if (role !== "user" && role !== "assistant") continue;
+    if (typeof content !== "string") continue;
+    const trimmed = content.trim();
+    if (!trimmed) continue;
+    out.push({ role, content: trimmed.slice(0, MAX_HISTORY_CHARS) });
+  }
+  // Keep the MOST RECENT turns — the tail is what a follow-up like "and?" refers to.
+  return out.slice(-MAX_HISTORY_TURNS);
+}
+
+/** The authoritative fact block handed to the model. Every figure comes from chain state. */
+export function contextFor(f: MemberFacts, baseline: string): string {
+  return `FACTS (authoritative, from chain):
+- circle state: ${f.state}
+- members joined: ${f.joined} of ${f.slots}
+- open slots: ${Math.max(f.slots - f.joined, 0)}
+- is member: ${f.isMember}
+- has received payout: ${f.hasReceived}
+- delinquent: ${f.isDelinquent}
+- your payout round (0-indexed): ${f.yourRound ?? "not in the rotation yet"}
+- rounds until your turn: ${f.roundsUntilYourTurn ?? "unknown"}
+- current recipient: ${f.currentRecipient ?? "none"}
+- pot: ${f.intendedPotStr}
+- deterministic answer to relay: ${baseline}
+`;
+}
+
+/**
+ * Rephrase the deterministic baseline in the member's language, in context of the conversation.
+ *
+ * The baseline is passed as authoritative so the model can only explain it, never invent a figure
+ * (CLAUDE.md §1.3). With no key — or on any failure — the baseline is returned unchanged, together
+ * with a `reason` so a missing key is distinguishable from an expired one.
+ */
+export async function answerWithLlm(
+  question: string,
+  facts: MemberFacts,
+  opts: { apiKey?: string; history?: ChatTurn[] } = {},
+): Promise<AnswerResult> {
+  const baseline = baselineAnswer(facts);
+  const { apiKey, history = [] } = opts;
+  if (!apiKey) return { answer: baseline, mode: "baseline", reason: "no_api_key" };
+
+  try {
+    const res = await fetch("https://api.deepseek.com/chat/completions", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: NL_MODEL,
+        max_tokens: 200,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          ...history,
+          { role: "user", content: `${contextFor(facts, baseline)}\nMember asks: ${question}` },
+        ],
+      }),
+    });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      console.warn("[nl] llm_http_error", res.status, detail.slice(0, 300));
+      return { answer: baseline, mode: "baseline", reason: `llm_http_${res.status}` };
+    }
+    const data = await res.json();
+    const text = (data?.choices?.[0]?.message?.content ?? "").trim();
+    if (!text) {
+      console.warn("[nl] llm_empty_response");
+      return { answer: baseline, mode: "baseline", reason: "llm_empty" };
+    }
+    return { answer: text, mode: "llm" };
+  } catch (err) {
+    console.warn("[nl] llm_threw", err);
+    return { answer: baseline, mode: "baseline", reason: "llm_threw" };
+  }
+}

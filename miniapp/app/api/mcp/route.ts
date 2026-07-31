@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { createPublicClient, http, isAddress, getAddress, formatUnits, type Address } from "viem";
 import { circleAbi, erc20Abi, factoryAbi, reputationAbi, STATE_NAMES } from "@/lib/abi";
 import { activeChain, CONTRACTS } from "@/lib/chain";
-import { factsFor, baselineAnswer, type CircleSnapshot } from "@/lib/nl";
+import { factsFor, answerWithLlm, type CircleSnapshot } from "@/lib/nl";
 
 // AjoAI MCP server (Model Context Protocol over Streamable HTTP / JSON-RPC 2.0).
 // READ-ONLY: it only reads on-chain state and explains it — it never moves money or sends a tx
@@ -162,7 +162,10 @@ async function callTool(name: string, args: Record<string, unknown>): Promise<{ 
       if (!question.trim()) return { text: "Empty question.", isError: true };
       const { snap, decimals } = await snapshotOf(getAddress(circle));
       const facts = factsFor(snap, member, decimals);
-      return { text: baselineAnswer(facts) };
+      // Same path the human-facing /app/api/ask route takes, so an agent asking a question gets
+      // a real answer to THAT question rather than the canned baseline (which ignored it).
+      const { answer } = await answerWithLlm(question, facts, { apiKey: process.env.LLM_API_KEY });
+      return { text: answer };
     }
     if (name === "list_circles") {
       const c = client();

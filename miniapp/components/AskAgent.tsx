@@ -13,6 +13,9 @@ export function AskAgent({ address, member }: { address: `0x${string}`; member?:
   const ask = async () => {
     const question = input.trim();
     if (!question || !member || sending) return;
+    // Send the turns so far so follow-ups ("and?", "why?") have a referent. The server caps and
+    // sanitises this; sending the tail only keeps the request small.
+    const history = messages.slice(-6).map((m) => ({ role: m.role === "me" ? "user" : "assistant", content: m.text }));
     setMessages((m) => [...m, { role: "me", text: question }]);
     setInput("");
     setSending(true);
@@ -20,7 +23,7 @@ export function AskAgent({ address, member }: { address: `0x${string}`; member?:
       const res = await fetch("/app/api/ask", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ circle: address, member, question }),
+        body: JSON.stringify({ circle: address, member, question, history }),
       });
       const data = await res.json();
       const text = res.ok && data.answer ? data.answer : "Sorry, I couldn't reach the agent. Try again in a moment.";

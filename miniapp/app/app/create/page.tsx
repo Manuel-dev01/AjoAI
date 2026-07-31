@@ -8,7 +8,7 @@ import { AppBar, ConnectButton } from "@/components/ui";
 import { useCeloWrite, friendlyTxError } from "@/lib/tx";
 import { factoryAbi } from "@/lib/abi";
 import { FACTORY } from "@/lib/circle";
-import { TOKEN_LIST } from "@/lib/chain";
+import { TOKEN_LIST, activeChain } from "@/lib/chain";
 import { setName } from "@/lib/names";
 import { frequencyLabel, durationLabel } from "@/lib/format";
 
@@ -22,10 +22,16 @@ const SIZES = [2, 3, 4, 6, 8, 10];
 // Token options (with on-chain decimals) for the active chain — USDT is 6-decimal, not 18.
 const TOKEN_OPTS = TOKEN_LIST;
 
+// createCircle deploys a Circle, so it is well above a plain call. Celo RPCs intermittently fail
+// eth_estimateGas against lagged state (see lib/tx.ts), and this path has no retry — so give it an
+// explicit limit rather than depending on estimation. Measured deploys land around 2.6M.
+const CREATE_GAS = 4_000_000n;
+
 export default function CreateCircle() {
   const router = useRouter();
-  const { isConnected } = useAccount();
+  const { isConnected, chainId } = useAccount();
   const { write, isPending, error } = useCeloWrite();
+  const [localError, setLocalError] = useState<string | null>(null);
   const [name, setNameInput] = useState("");
   const [amount, setAmount] = useState("10");
   const [tok, setTok] = useState(0);
@@ -46,18 +52,34 @@ export default function CreateCircle() {
   }, [receipt, router, name]);
 
   async function submit() {
+    setLocalError(null);
     const period = FREQS[freq].period;
     const contribution = parseUnits(amount || "0", TOKEN_OPTS[tok].decimals);
-    const h = await write({
-      address: FACTORY,
-      abi: factoryAbi,
-      functionName: "createCircle",
-      args: [TOKEN_OPTS[tok].addr, contribution, BigInt(period), BigInt(Math.floor(period / 7)), 500, SIZES[size]],
-    });
-    setTxHash(h);
+    // Caught client-side so the wallet never round-trips to a guaranteed `contribution=0` revert.
+    if (contribution <= 0n) {
+      setLocalError("Enter an amount greater than zero for each round.");
+      return;
+    }
+    try {
+      const h = await write({
+        address: FACTORY,
+        abi: factoryAbi,
+        functionName: "createCircle",
+        args: [TOKEN_OPTS[tok].addr, contribution, BigInt(period), BigInt(Math.floor(period / 7)), 500, SIZES[size]],
+        gas: CREATE_GAS,
+      });
+      setTxHash(h);
+    } catch (err) {
+      // Without this catch the promise rejected unhandled and the user saw nothing at all —
+      // notably for the "switch your wallet" error thrown before writeContract is ever called.
+      setLocalError(friendlyTxError(err as { message?: string }));
+    }
   }
 
   const busy = isPending || (!!txHash && !receipt);
+  const amountValid = Number(amount || 0) > 0;
+  const wrongNetwork = isConnected && chainId !== undefined && chainId !== activeChain.id;
+  const banner = localError ?? friendlyTxError(error);
 
   // Live, plain-language recap so the form is a confirmable summary, not a silent set of toggles.
   const sym = TOKEN_OPTS[tok].sym;
@@ -131,12 +153,13 @@ export default function CreateCircle() {
           <div className="meta" style={{ fontWeight: 600, lineHeight: 1.5 }}>{recap}</div>
         </div>
         <p className="muted">A one-round security deposit ({amount || 0} {TOKEN_OPTS[tok].sym}) is posted by each member on joining. It covers a missed round and is returned on clean completion.</p>
-        {error && <p className="banner">{friendlyTxError(error)}</p>}
+        {wrongNetwork && <p className="banner">Your wallet is on another network. Switch to {activeChain.name} to create a circle.</p>}
+        {banner && <p className="banner">{banner}</p>}
       </div>
 
       <div className="fixbtn">
         {isConnected ? (
-          <button className="btn btn-ochre btn-block" disabled={busy} onClick={submit}>
+          <button className="btn btn-ochre btn-block" disabled={busy || !amountValid} onClick={submit}>
             {busy ? "Creating…" : "Create & join →"}
           </button>
         ) : (

@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAccount, useReadContract, useWaitForTransactionReceipt } from "wagmi";
 import { AppBar, Lrow, ConnectButton } from "@/components/ui";
 import { RingMark } from "@/components/RingMark";
-import { useCeloWrite } from "@/lib/tx";
+import { useCeloWrite, friendlyTxError } from "@/lib/tx";
 import { circleAbi, erc20Abi } from "@/lib/abi";
 import { useCircle, useToken } from "@/lib/circle";
 import { FaucetButton, useTokenBalance } from "@/components/Faucet";
@@ -111,7 +111,7 @@ function Preview({ circle, name, me, isConnected, onJoined }: { circle: `0x${str
       <Lrow k="Security deposit" v={fmtAmount(deposit, symbol, decimals)} />
       <Lrow k="You receive on your turn" v={fmtAmount(pot, symbol, decimals)} vColor="var(--clay-d)" />
       <Lrow k="Your payout round" v={joinIndex && slots ? `Round ${joinIndex} of ${slots}` : "…"} />
-      {error && <p className="banner">{error.message.slice(0, 120)}</p>}
+      {error && <p className="banner">{friendlyTxError(error)}</p>}
 
       <div style={{ marginTop: 16, display: "grid", gap: 9 }}>
         {!isConnected ? (

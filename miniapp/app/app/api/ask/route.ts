@@ -2,11 +2,15 @@ import { NextResponse } from "next/server";
 import { createPublicClient, http, isAddress, getAddress, type Address } from "viem";
 import { circleAbi, erc20Abi, STATE_NAMES } from "@/lib/abi";
 import { activeChain } from "@/lib/chain";
-import { factsFor, baselineAnswer, SYSTEM_PROMPT, NL_MODEL, type CircleSnapshot } from "@/lib/nl";
+import { factsFor, baselineAnswer, answerWithLlm, sanitizeHistory, type CircleSnapshot } from "@/lib/nl";
 
 // Server-side NL Q&A endpoint (CLAUDE.md §1.3): reads chain state, derives a deterministic
-// money-safe answer (lib/nl.ts), and optionally has Claude rephrase it in the member's
-// language. Never moves money — see agent/src/nl.py for the Python agent's equivalent.
+// money-safe answer (lib/nl.ts), and has DeepSeek rephrase it in the member's language. Never
+// moves money — see agent/src/nl.py for the Python agent's equivalent.
+//
+// The response carries `mode` ("llm" | "baseline") and, when deterministic, a `reason`. Without
+// that, an unset key, an expired key and a 402 are indistinguishable from the outside — which is
+// exactly how this endpoint silently served canned answers in production.
 
 // In-memory rate limit so an anonymous loop can't drain the paid LLM_API_KEY budget. Over the
 // limit we still answer — with the deterministic baseline (money-accurate, $0) — just without the
@@ -27,7 +31,7 @@ function llmAllowed(key: string): boolean {
 }
 
 export async function POST(req: Request) {
-  let body: { circle?: string; member?: string; question?: string };
+  let body: { circle?: string; member?: string; question?: string; history?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -35,6 +39,7 @@ export async function POST(req: Request) {
   }
 
   const { circle, member, question } = body;
+  const history = sanitizeHistory(body.history);
   if (!circle || !isAddress(circle) || !member || !isAddress(member)) {
     return NextResponse.json({ error: "Invalid address" }, { status: 400 });
   }
@@ -108,48 +113,20 @@ export async function POST(req: Request) {
     };
 
     const facts = factsFor(snapshot, member, decimals);
-    const baseline = baselineAnswer(facts);
 
-    // No key, or this client is over the rate limit → return the deterministic baseline (never
-    // spends). The baseline is already money-accurate; only the LLM rephrase is skipped.
+    // The limiter is only consulted when a key exists, so a keyless deployment always reports
+    // "no_api_key" instead of eventually reporting "rate_limited" for a call it never makes.
+    // Over the limit we still answer — deterministically, money-accurately, for $0 — just
+    // without the LLM rephrase.
     const apiKey = process.env.LLM_API_KEY;
-    if (!apiKey || !llmAllowed(rlKey)) return NextResponse.json({ answer: baseline });
-
-    const context = `FACTS (authoritative, from chain):
-- circle state: ${facts.state}
-- is member: ${facts.isMember}
-- has received payout: ${facts.hasReceived}
-- delinquent: ${facts.isDelinquent}
-- rounds until your turn: ${facts.roundsUntilYourTurn}
-- pot: ${facts.intendedPotStr}
-- deterministic answer to relay: ${baseline}
-`;
-
-    try {
-      // DeepSeek (OpenAI-compatible chat completions). Explanation only; the deterministic
-      // baseline is passed as authoritative so the model can only rephrase, never invent facts.
-      const res = await fetch("https://api.deepseek.com/chat/completions", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: NL_MODEL,
-          max_tokens: 200,
-          messages: [
-            { role: "system", content: SYSTEM_PROMPT },
-            { role: "user", content: `${context}\nMember asks: ${question}` },
-          ],
-        }),
-      });
-      if (!res.ok) return NextResponse.json({ answer: baseline });
-      const data = await res.json();
-      const text = (data?.choices?.[0]?.message?.content ?? "").trim();
-      return NextResponse.json({ answer: text || baseline });
-    } catch {
-      return NextResponse.json({ answer: baseline });
+    if (!apiKey) console.warn("[ask] no_api_key — set LLM_API_KEY on the Vercel project serving this domain");
+    if (apiKey && !llmAllowed(rlKey)) {
+      console.warn("[ask] rate_limited", rlKey);
+      return NextResponse.json({ answer: baselineAnswer(facts), mode: "baseline", reason: "rate_limited" });
     }
+
+    const result = await answerWithLlm(question, facts, { apiKey, history });
+    return NextResponse.json(result);
   } catch {
     return NextResponse.json({ error: "Failed to read circle state" }, { status: 500 });
   }
