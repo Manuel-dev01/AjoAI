@@ -77,3 +77,6 @@ docs/STACK.md
 docs/STATUS.md
 
 .vercel
+
+# Local agent tooling (not part of the published project)
+.claude/

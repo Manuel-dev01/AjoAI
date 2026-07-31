@@ -4,6 +4,6 @@ web3>=6.15,<8            # chain client. NOTE: stock web3.py/eth-account can't s
 python-dotenv>=1.0       # load .env
 structlog>=24.1          # structured, tx-hash-linked JSON logs
 APScheduler>=3.10,<4     # idempotent scheduled jobs (windows/payouts)
-anthropic>=0.40          # NL handler ONLY (never moves money)
+requests>=2.31           # NL handler's DeepSeek call ONLY (never moves money) — see src/nl.py
 # dev
 pytest>=8.0
